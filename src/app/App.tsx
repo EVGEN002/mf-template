@@ -26,7 +26,7 @@ const App = ({ id, type }: AppProps) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = (await getCurrentUser()) as CurrentUser;
+        const data = ((await getCurrentUser()).data) as CurrentUser;
 
         setUserRole(data.role);
         // setUserRole("guest"); // TEST

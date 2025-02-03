@@ -113,9 +113,9 @@ export default function DetailAdmin({ id }: { id: string }) {
     if (promiseResult.status === 'fulfilled') {
       const promiseData = promiseResult.value;
 
-      setter((prev) => ({ ...prev, [key]: promiseData }));
+      setter((prev) => ({ ...prev, [key]: (promiseData as any).data }));
 
-      return promiseData;
+      return (promiseData as any).data;
     } else if (promiseResult.status === 'rejected') {
       console.error(promiseResult.reason);
 
@@ -125,7 +125,13 @@ export default function DetailAdmin({ id }: { id: string }) {
 
   useEffect(() => {
     (async () => {
-      getSpatialData(id).then((res: any) => setMaterial(res));
+      const response = await getSpatialData(id);
+
+      if (response.success && response.data) {
+        setMaterial(response.data);
+      } else {
+        throw new Error(response.error?.message);
+      }
     })();
   }, []);
 
@@ -317,7 +323,7 @@ export default function DetailAdmin({ id }: { id: string }) {
       if (r_material.status === 'fulfilled') {
         const data = r_material.value;
 
-        setMaterial(data);
+        setMaterial((data as any).data);
       }
       setIsLoaded(true);
     };
@@ -326,12 +332,11 @@ export default function DetailAdmin({ id }: { id: string }) {
   }, []);
 
   const updateMaterial = async () => {
-    try {
-      if (material) {
-        await putSpatialData(id, material);
-        toast.success('Материал успешно сохранен');
-      }
-    } catch (err) {
+    const response = await putSpatialData(id, material);
+
+    if (response.success) {
+      toast.success('Материал успешно сохранен');
+    } else {
       toast.error('Ошибка при сохранении материала');
     }
   };
@@ -451,8 +456,8 @@ export default function DetailAdmin({ id }: { id: string }) {
 
   return (
     <div className="h-full overflow-auto px-[30px]">
-      <div className="grid h-full gap-6 py-6 grid-cols-4">
-        <Card className="flex flex-col col-span-2">
+      <div className="grid h-full grid-cols-4 gap-6 py-6">
+        <Card className="col-span-2 flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center">
               {isLoaded ? material?.name : <Skeleton className="h-6 w-full" />}
@@ -465,7 +470,7 @@ export default function DetailAdmin({ id }: { id: string }) {
                   <TextareaItem
                     readOnly={true}
                     label="Наименование"
-                    placeholder=''
+                    placeholder=""
                     value={material?.name ?? undefined}
                     onChange={(event) => set('name', event.target.value)}
                   />
@@ -893,13 +898,25 @@ export default function DetailAdmin({ id }: { id: string }) {
                   <BaseItem
                     readOnly={true}
                     label="Дата создания"
-                    value={material?.createDate ? new Date(material?.createDate).toLocaleDateString('ru-RU') : ''}
+                    value={
+                      material?.createDate
+                        ? new Date(material?.createDate).toLocaleDateString(
+                            'ru-RU'
+                          )
+                        : ''
+                    }
                     onChange={(event) => {}}
                   />
                   <BaseItem
                     readOnly={true}
                     label="Дата редактирования"
-                    value={material?.modifiedDate ? new Date(material?.modifiedDate).toLocaleDateString('ru-RU') : ''}
+                    value={
+                      material?.modifiedDate
+                        ? new Date(material?.modifiedDate).toLocaleDateString(
+                            'ru-RU'
+                          )
+                        : ''
+                    }
                     onChange={(event) => {}}
                   />
                   <BaseItem
@@ -950,7 +967,7 @@ export default function DetailAdmin({ id }: { id: string }) {
             <CardContent>
               {material?.repoFiles?.repoAttachedFiles &&
               material?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {material?.repoFiles.repoAttachedFiles.map((file) => (
                     <img
                       src={`${returnRepoSrc(file?.code, 'jpg')}`}
@@ -962,7 +979,7 @@ export default function DetailAdmin({ id }: { id: string }) {
                 </div>
               ) : material?.attachedFilesList &&
                 material?.attachedFilesList?.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {material?.attachedFilesList.map((file) => (
                     <img
                       src={`${returnFileSrcFromPath(file?.path, 'jpg')}`}
@@ -987,14 +1004,14 @@ export default function DetailAdmin({ id }: { id: string }) {
             <CardContent>
               {material?.repoFiles?.repoStorageFiles &&
               material?.repoFiles.repoStorageFiles.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {material?.repoFiles.repoStorageFiles.map((file) =>
                     renderDoc(file)
                   )}
                 </div>
               ) : material?.storageFilesList &&
                 material?.storageFilesList?.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {material?.storageFilesList.map((file: any) =>
                     renderDocFromPath(file.path, file.description)
                   )}
@@ -1007,7 +1024,7 @@ export default function DetailAdmin({ id }: { id: string }) {
             </CardContent>
           </Card>
         </div>
-        <div className="flex justify-between pb-[30px] col-span-4">
+        <div className="col-span-4 flex justify-between pb-[30px]">
           <Button variant="outline" onClick={() => history.back()}>
             <ArrowLeft className="mr-2" size={16} />
             Назад к каталогу

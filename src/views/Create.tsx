@@ -24,7 +24,6 @@ import '@/assets/global.css';
 import {
   getDictionary,
   getDictionaryFundsettings,
-  getSpatialData,
   postSpatialData,
   uploadRepoFile
 } from '@/api';
@@ -201,27 +200,31 @@ export default function Create() {
     }
 
     try {
-      const repoResponse: RepoFile[] = await uploadRepoFile(formData);
+      const repoResponse = await uploadRepoFile(formData);
 
-      setMaterial((prev) => {
-        return {
-          ...prev,
-          repoFiles: prev.repoFiles
-            ? {
-                ...prev.repoFiles,
-                repoStorageFiles: [
-                  ...prev.repoFiles.repoAttachedFiles,
-                  ...repoResponse
-                ]
-              }
-            : prev.repoFiles
-        };
-      });
+      if (repoResponse.success && repoResponse.data) {
+        setMaterial((prev) => {
+          return {
+            ...prev,
+            repoFiles: prev.repoFiles
+              ? {
+                  ...prev.repoFiles,
+                  repoStorageFiles: [
+                    ...prev.repoFiles.repoAttachedFiles,
+                    ...(repoResponse.data as any)
+                  ]
+                }
+              : prev.repoFiles
+          };
+        });
 
-      toast.success('Файл успешно загружен');
-      setShowAddFileModal(false);
-    } catch {
-      toast.error('Ошибка при загрузке файла');
+        toast.success('Файл успешно загружен');
+        setShowAddFileModal(false);
+      } else {
+        toast.error('Ошибка при загрузке файла');
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -250,10 +253,9 @@ export default function Create() {
       formData.append('files', files[i]);
     }
 
-    try {
-      const repoResponse: RepoFile[] = await uploadRepoFile(formData);
+    const repoResponse = await uploadRepoFile(formData);
 
-      // setMaterial((prev) => ({ ...prev, repoFiles: { ...prev.repoFiles,  } }))
+    if (repoResponse.success) {
       setMaterial((prev) => {
         debugger;
 
@@ -264,7 +266,7 @@ export default function Create() {
                 ...prev.repoFiles,
                 repoAttachedFiles: [
                   ...prev.repoFiles.repoAttachedFiles,
-                  ...repoResponse
+                  ...(repoResponse.data as RepoFile[])
                 ]
               }
             : prev.repoFiles
@@ -272,8 +274,8 @@ export default function Create() {
       });
 
       toast.success('Изображение успешно загружено');
-      setShowAddFileModal(false);
-    } catch {
+      setShowAddImageModal(false);
+    } else {
       toast.error('Ошибка при загрузке изображения');
     }
   };
@@ -286,9 +288,9 @@ export default function Create() {
     if (promiseResult.status === 'fulfilled') {
       const promiseData = promiseResult.value;
 
-      setter((prev) => ({ ...prev, [key]: promiseData }));
+      setter((prev) => ({ ...prev, [key]: (promiseData as any).data }));
 
-      return promiseData;
+      return (promiseData as any).data;
     } else if (promiseResult.status === 'rejected') {
       console.error(promiseResult.reason);
 
@@ -490,12 +492,12 @@ export default function Create() {
       if (r_materialshelfs.status === 'fulfilled') {
         const data = r_materialshelfs.value;
 
-        setSectionDictionary(data);
+        setSectionDictionary(data.data);
       }
       if (r_location.status === 'fulfilled') {
         const data = r_location.value;
 
-        setLocationDictionary(data);
+        setLocationDictionary(data.data);
       }
       setIsLoaded(true);
     };
@@ -664,8 +666,8 @@ export default function Create() {
 
   return (
     <div className="h-full overflow-auto px-[30px]">
-      <div className="grid gap-6 py-[30px] grid-cols-4">
-        <Card className="flex flex-col col-span-2">
+      <div className="grid grid-cols-4 gap-6 py-[30px]">
+        <Card className="col-span-2 flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center">
               <MapPinPlus className="mr-2" size={20} />
@@ -1162,7 +1164,7 @@ export default function Create() {
           </CardContent>
         </Card>
 
-        <div className="space-y-4 col-span-2">
+        <div className="col-span-2 space-y-4">
           <Card className="col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>
@@ -1202,7 +1204,7 @@ export default function Create() {
               {/* <pre>{JSON.stringify(material?.repoFiles, null, 2)}</pre> */}
               {material?.repoFiles?.repoAttachedFiles &&
               material?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {material?.repoFiles.repoAttachedFiles.map((file) => (
                     <img
                       src={`${returnRepoSrc(file?.code, 'jpg')}`}
@@ -1233,7 +1235,7 @@ export default function Create() {
             <CardContent>
               {material?.repoFiles?.repoStorageFiles &&
               material?.repoFiles.repoStorageFiles.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {material?.repoFiles.repoStorageFiles.map((file) =>
                     renderDoc(file)
                   )}
@@ -1255,7 +1257,7 @@ export default function Create() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+              <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                 <img
                   src="/placeholder.svg?height=150&width=150"
                   alt="Preview 1"

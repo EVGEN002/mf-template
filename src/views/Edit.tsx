@@ -396,17 +396,19 @@ export default function Edit({ id }: { id: string }) {
       if (r_material.status === 'fulfilled') {
         const data = r_material.value;
 
-        setMaterial(data);
+        if (data.data) {
+          setMaterial(data.data);
+        }
       }
       if (r_materialshelfs.status === 'fulfilled') {
         const data = r_materialshelfs.value;
 
-        setSectionDictionary(data);
+        setSectionDictionary(data.data);
       }
       if (r_location.status === 'fulfilled') {
         const data = r_location.value;
 
-        setLocationDictionary(data);
+        setLocationDictionary(data.data);
       }
       setIsLoaded(true);
     };
@@ -417,21 +419,22 @@ export default function Edit({ id }: { id: string }) {
   const updateMaterial = async () => {
     setSending(true);
 
-    try {
-      if (material) {
-        const data = material;
+    if (material) {
+      const data = material;
 
-        if (data.geometry) {
-          delete data.geometry;
-        }
+      if (data.geometry) {
+        delete data.geometry;
+      }
 
-        await putSpatialData(id, data);
+      const response = await putSpatialData(id, data);
+
+      if (response.success) {
         toast.success('Материал успешно сохранен');
         setSending(false);
+      } else {
+        toast.error('Ошибка при сохранении материала');
+        setSending(false);
       }
-    } catch (err) {
-      toast.error('Ошибка при сохранении материала');
-      setSending(false);
     }
   };
 
@@ -528,6 +531,7 @@ export default function Edit({ id }: { id: string }) {
       formData.append('files', files[i]);
     }
 
+    // Исправить здесь при проблемах уведомления об успешной/ошибке загрузке
     try {
       const repoResponse = await uploadRepoFile(formData);
 
@@ -555,6 +559,7 @@ export default function Edit({ id }: { id: string }) {
       formData.append('files', files[i]);
     }
 
+    // Исправить здесь при проблемах уведомления об успешной/ошибке загрузке
     try {
       const repoResponse = await uploadRepoFile(formData);
 

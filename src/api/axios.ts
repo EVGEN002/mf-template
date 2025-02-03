@@ -1,15 +1,14 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import cookie from 'js-cookie';
 
-type ApiResponse<T> = T;
-// interface ApiResponse<T> {
-//   success: boolean;
-//   data?: T;
-//   error?: {
-//     message: string;
-//     status?: number;
-//   };
-// }
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    message: string;
+    status?: number;
+  };
+}
 
 const API_URL = process.env.API_URL;
 const API_KEY = process.env.API_KEY;
@@ -32,7 +31,7 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error) => {
-    return Promise.reject(new Error(`Request error: ${error.message}`));
+    return Promise.reject(error);
   }
 );
 
@@ -41,7 +40,7 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    return Promise.reject(new Error(`Response error: ${error.message}`));
+    return Promise.reject(error);
   }
 );
 
@@ -49,7 +48,7 @@ const request = {
   get: async <T>(url: string): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.get(url);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
         return {
@@ -62,58 +61,103 @@ const request = {
                   'Произошла ошибка при запросе',
             status: error.response?.status
           }
-        } as any;
+        };
       } else {
         return {
           success: false,
           error: {
             message: 'Неизвестная ошибка'
           }
-        } as any;
+        };
       }
     }
   },
   post: async <T, D>(
     url: string,
-    data: D,
+    payloadData: D,
     params?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.post(
         url,
-        data,
+        payloadData,
         params
       );
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(error.message);
+        return {
+          success: false,
+          error: {
+            message:
+              error.response?.status === 404
+                ? 'Запрашиваемый ресурс не найден (404)'
+                : error.response?.data?.message ||
+                  'Произошла ошибка при запросе',
+            status: error.response?.status
+          }
+        };
       } else {
-        throw new Error('Unexpected error');
+        return {
+          success: false,
+          error: {
+            message: 'Неизвестная ошибка'
+          }
+        };
       }
     }
   },
   put: async <T, D>(url: string, data: D): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.put(url, data);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(error.message);
+        return {
+          success: false,
+          error: {
+            message:
+              error.response?.status === 404
+                ? 'Запрашиваемый ресурс не найден (404)'
+                : error.response?.data?.message ||
+                  'Произошла ошибка при запросе',
+            status: error.response?.status
+          }
+        };
       } else {
-        throw new Error('Unexpected error');
+        return {
+          success: false,
+          error: {
+            message: 'Неизвестная ошибка'
+          }
+        };
       }
     }
   },
   detele: async <T>(url: string): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.post(url);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(error.message);
+        return {
+          success: false,
+          error: {
+            message:
+              error.response?.status === 404
+                ? 'Запрашиваемый ресурс не найден (404)'
+                : error.response?.data?.message ||
+                  'Произошла ошибка при запросе',
+            status: error.response?.status
+          }
+        };
       } else {
-        throw new Error('Unexpected error');
+        return {
+          success: false,
+          error: {
+            message: 'Неизвестная ошибка'
+          }
+        };
       }
     }
   }

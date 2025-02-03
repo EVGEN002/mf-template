@@ -5,6 +5,16 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Map from 'MapProvider/MapComponentContainer';
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog';
+
 import '@/assets/global.css';
 
 import {
@@ -31,6 +41,11 @@ export default function Detail({ id }: DetailProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [cartCount, setCartCount] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [errorModal, setErrorModal] = useState<{
+    isShow: boolean;
+    title: string;
+    description: string;
+  }>({ isShow: false, title: '', description: '' });
 
   const handleSetBaseDictionary = <T,>(
     promiseResult: PromiseSettledResult<T>,
@@ -40,9 +55,9 @@ export default function Detail({ id }: DetailProps) {
     if (promiseResult.status === 'fulfilled') {
       const promiseData = promiseResult.value;
 
-      setter((prev) => ({ ...prev, [key]: promiseData }));
+      setter((prev) => ({ ...prev, [key]: (promiseData as any).data }));
 
-      return promiseData;
+      return (promiseData as any).data;
     } else if (promiseResult.status === 'rejected') {
       console.error(promiseResult.reason);
 
@@ -52,15 +67,25 @@ export default function Detail({ id }: DetailProps) {
 
   useEffect(() => {
     (async () => {
-      getSpatialData(id)
-        .then((res) => {
-          debugger;
-          setData(res)
-        })
-        .catch((err) => {
-          debugger;
-          console.log(err);
+      const response = await getSpatialData(id);
+      debugger;
+      if (response.success && response.data) {
+        setData(response.data);
+      } else if (response.success === false && response.error?.status === 404) {
+        setErrorModal({
+          isShow: true,
+          title: 'Материал не найден',
+          description:
+            'Запрашиваемый материал не существует или был удалён. Пожалуйста, проверьте ссылку или вернитесь к списку материалов'
         });
+      } else if (response.success === false) {
+        setErrorModal({
+          isShow: true,
+          title: 'Ошибка получения данных материала',
+          description:
+            'Произошла ошибка при попытке получить данные о материале. Попробуйте снова или обратитесь в поддержку, если проблема не исчезнет.'
+        });
+      }
     })();
   }, []);
 
@@ -255,12 +280,12 @@ export default function Detail({ id }: DetailProps) {
       if (r_material.status === 'fulfilled') {
         const data = r_material.value;
 
-        setData(data);
+        setData(data.data as any);
       }
       if (r_me.status === 'fulfilled') {
         const data: any = r_me.value;
 
-        setCartCount(data.cartCount);
+        setCartCount(data.data.cartCount);
       }
       setIsLoaded(true);
     };
@@ -372,240 +397,261 @@ export default function Detail({ id }: DetailProps) {
     return href;
   };
 
+  const handleToggleErrorModal = (open: boolean) => {
+    setErrorModal((prev) => ({ ...prev, isShow: open }));
+  };
+
   return (
-    <div className="h-full overflow-auto px-[30px]">
-      <div className="mb-[30px] grid h-full grid-cols-4 gap-6 py-[30px]">
-        <Card className="col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <MapPin className="mr-2" size={20} />
-              Пространственные данные
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label className="font-medium">Наименование</Label>
-                <p className="line-clamp-1">{data?.name}</p>
-              </div>
-              <div>
-                <Label className="font-medium">
-                  Вид пространственных данных
-                </Label>
-                <p>
-                  {
-                    baseDictionary?.displayforms?.find(
-                      (item) => item?.id == data?.displayForm
-                    )?.name
-                  }
-                </p>
-              </div>
-              <div>
-                <Label className="font-medium">Местоположение территории</Label>
-                <p>
-                  {data?.location ? (
-                    data.location
-                  ) : (
-                    <Badge variant="secondary">Нет данных</Badge>
-                  )}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+    <>
+      <div className="h-full overflow-auto px-[30px]">
+        <div className="mb-[30px] grid h-full grid-cols-4 gap-6 py-[30px]">
+          <Card className="col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <MapPin className="mr-2" size={20} />
+                Пространственные данные
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
                 <div>
-                  <Label className="font-medium">Год создания</Label>
+                  <Label className="font-medium">Наименование</Label>
+                  <p className="line-clamp-1">{data?.name}</p>
+                </div>
+                <div>
+                  <Label className="font-medium">
+                    Вид пространственных данных
+                  </Label>
                   <p>
-                    {data?.yearCreate ? (
-                      data.yearCreate
+                    {
+                      baseDictionary?.displayforms?.find(
+                        (item) => item?.id == data?.displayForm
+                      )?.name
+                    }
+                  </p>
+                </div>
+                <div>
+                  <Label className="font-medium">
+                    Местоположение территории
+                  </Label>
+                  <p>
+                    {data?.location ? (
+                      data.location
                     ) : (
                       <Badge variant="secondary">Нет данных</Badge>
                     )}
                   </p>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="font-medium">Год создания</Label>
+                    <p>
+                      {data?.yearCreate ? (
+                        data.yearCreate
+                      ) : (
+                        <Badge variant="secondary">Нет данных</Badge>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="font-medium">Система координат</Label>
+                    <p>
+                      {baseDictionary?.coordinateSystems?.find(
+                        (item) => item?.id == data?.baseType
+                      )?.name ?? <Badge variant="secondary">Нет данных</Badge>}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="font-medium">Масштаб</Label>
+                    <p>
+                      {data?.scale ? (
+                        `1 : ${data.scale}`
+                      ) : (
+                        <Badge variant="secondary">Нет данных</Badge>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="font-medium">Формат хранения</Label>
+                    <p>
+                      {data?.formats && data?.formats.length > 0 ? (
+                        data?.formats!.join(', ')
+                      ) : (
+                        <Badge variant="secondary">Нет данных</Badge>
+                      )}
+                    </p>
+                  </div>
+                </div>
                 <div>
-                  <Label className="font-medium">Система координат</Label>
+                  <Label className="font-medium">Секретность</Label>
                   <p>
-                    {baseDictionary?.coordinateSystems?.find(
-                      (item) => item?.id == data?.baseType
+                    {baseDictionary?.secretStatusTypes?.find(
+                      (item) => item?.id === data?.secretStatus
                     )?.name ?? <Badge variant="secondary">Нет данных</Badge>}
                   </p>
                 </div>
                 <div>
-                  <Label className="font-medium">Масштаб</Label>
+                  <Label className="font-medium">
+                    Организация-изготовитель
+                  </Label>
                   <p>
-                    {data?.scale ? (
-                      `1 : ${data.scale}`
-                    ) : (
+                    {baseDictionary?.materialcreator?.find(
+                      (item) => item?.id == data?.materialCreatorId
+                    )?.name ?? <Badge variant="secondary">Нет данных</Badge>}
+                  </p>
+                </div>
+                <div>
+                  <Label className="font-medium">Правообладатель</Label>
+                  <p>
+                    {data?.mapOwner ?? (
                       <Badge variant="secondary">Нет данных</Badge>
                     )}
                   </p>
                 </div>
                 <div>
-                  <Label className="font-medium">Формат хранения</Label>
+                  <Label className="font-medium">
+                    Год соответствия местности
+                  </Label>
                   <p>
-                    {data?.formats && data?.formats.length > 0 ? (
-                      data?.formats!.join(', ')
-                    ) : (
+                    {data?.yearConformity ?? (
+                      <Badge variant="secondary">Нет данных</Badge>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <Label className="font-medium">Условия доступа</Label>
+                  <p>
+                    {data?.accessConditions ?? (
                       <Badge variant="secondary">Нет данных</Badge>
                     )}
                   </p>
                 </div>
               </div>
-              <div>
-                <Label className="font-medium">Секретность</Label>
-                <p>
-                  {baseDictionary?.secretStatusTypes?.find(
-                    (item) => item?.id === data?.secretStatus
-                  )?.name ?? <Badge variant="secondary">Нет данных</Badge>}
-                </p>
-              </div>
-              <div>
-                <Label className="font-medium">Организация-изготовитель</Label>
-                <p>
-                  {baseDictionary?.materialcreator?.find(
-                    (item) => item?.id == data?.materialCreatorId
-                  )?.name ?? <Badge variant="secondary">Нет данных</Badge>}
-                </p>
-              </div>
-              <div>
-                <Label className="font-medium">Правообладатель</Label>
-                <p>
-                  {data?.mapOwner ?? (
-                    <Badge variant="secondary">Нет данных</Badge>
-                  )}
-                </p>
-              </div>
-              <div>
-                <Label className="font-medium">
-                  Год соответствия местности
-                </Label>
-                <p>
-                  {data?.yearConformity ?? (
-                    <Badge variant="secondary">Нет данных</Badge>
-                  )}
-                </p>
-              </div>
-              <div>
-                <Label className="font-medium">Условия доступа</Label>
-                <p>
-                  {data?.accessConditions ?? (
-                    <Badge variant="secondary">Нет данных</Badge>
-                  )}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <div className="col-span-2 space-y-4">
-          <Card className="col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Контур пространственных данных</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="aspect-video overflow-hidden rounded-lg bg-gray-200">
-                <Map
-                  type="spatial-data"
-                  geometry={data?.geometryString ?? ''}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-2">
-            <CardHeader>
-              <CardTitle>
-                Изображения предпросмотра пространственных данных
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data?.repoFiles?.repoAttachedFiles &&
-              data?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {data?.repoFiles.repoAttachedFiles.map((file) => (
-                    <img
-                      src={`${returnRepoSrc(file?.code, 'jpg')}`}
-                      alt="Preview 1"
-                      className="h-auto w-[400px] rounded-lg"
-                      width={400}
-                    />
-                  ))}
+          <div className="col-span-2 space-y-4">
+            <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Контур пространственных данных</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video overflow-hidden rounded-lg bg-gray-200">
+                  <Map
+                    type="spatial-data"
+                    geometry={data?.geometryString ?? ''}
+                  />
                 </div>
-              ) : data?.attachedFilesList &&
-                data?.attachedFilesList?.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {data?.attachedFilesList.map((file) => (
-                    <img
-                      src={`${returnFileSrcFromPath(file?.path, 'jpg')}`}
-                      alt="Preview 1"
-                      className="h-auto w-[400px] rounded-lg"
-                      width={400}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-gray-500">
-                  Нет доступных файлов
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="col-span-3">
-            <CardHeader>
-              <CardTitle>Файлы пространственных данных</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data?.repoFiles?.repoStorageFiles &&
-              data?.repoFiles.repoStorageFiles.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {data?.repoFiles.repoStorageFiles.map((file) =>
-                    renderDoc(file)
-                  )}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-gray-500">
-                  Нет доступных файлов
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="col-span-4 flex justify-between pb-[30px]">
-          <a onClick={() => history.back()}>
-            <Button variant="outline">
-              <ArrowLeft className="mr-2" size={16} />
-              Назад к каталогу
-            </Button>
-          </a>
-          <div className="flex space-x-4">
-            <a href={cartHref()} className="cursor-pointer">
-              <Button className="relative" variant="outline">
-                В заявлении
-                {!!cartCount && (
-                  <Badge className="absolute -right-2 -top-2">
-                    {cartCount}
-                  </Badge>
+              </CardContent>
+            </Card>
+            <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle>
+                  Изображения предпросмотра пространственных данных
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data?.repoFiles?.repoAttachedFiles &&
+                data?.repoFiles?.repoAttachedFiles?.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    {data?.repoFiles.repoAttachedFiles.map((file) => (
+                      <img
+                        src={`${returnRepoSrc(file?.code, 'jpg')}`}
+                        alt="Preview 1"
+                        className="h-auto w-[400px] rounded-lg"
+                        width={400}
+                      />
+                    ))}
+                  </div>
+                ) : data?.attachedFilesList &&
+                  data?.attachedFilesList?.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    {data?.attachedFilesList.map((file) => (
+                      <img
+                        src={`${returnFileSrcFromPath(file?.path, 'jpg')}`}
+                        alt="Preview 1"
+                        className="h-auto w-[400px] rounded-lg"
+                        width={400}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-gray-500">
+                    Нет доступных файлов
+                  </div>
                 )}
+              </CardContent>
+            </Card>
+            <Card className="col-span-3">
+              <CardHeader>
+                <CardTitle>Файлы пространственных данных</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data?.repoFiles?.repoStorageFiles &&
+                data?.repoFiles.repoStorageFiles.length > 0 ? (
+                  <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    {data?.repoFiles.repoStorageFiles.map((file) =>
+                      renderDoc(file)
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-gray-500">
+                    Нет доступных файлов
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="col-span-4 flex justify-between pb-[30px]">
+            <a onClick={() => history.back()}>
+              <Button variant="outline">
+                <ArrowLeft className="mr-2" size={16} />
+                Назад к каталогу
               </Button>
             </a>
-            <Button
-              className="flex gap-2"
-              onClick={addToCart}
-              disabled={!isLoaded || adding}
-            >
-              {adding ? (
-                <>
-                  Добавление{' '}
-                  <LoaderCircle className="h-4 w-4 animate-spin duration-500" />
-                </>
-              ) : (
-                'Добавить в заявление'
-              )}
-            </Button>
+            <div className="flex space-x-4">
+              <a href={cartHref()} className="cursor-pointer">
+                <Button className="relative" variant="outline">
+                  В заявлении
+                  {!!cartCount && (
+                    <Badge className="absolute -right-2 -top-2">
+                      {cartCount}
+                    </Badge>
+                  )}
+                </Button>
+              </a>
+              <Button
+                className="flex gap-2"
+                onClick={addToCart}
+                disabled={!isLoaded || adding}
+              >
+                {adding ? (
+                  <>
+                    Добавление{' '}
+                    <LoaderCircle className="h-4 w-4 animate-spin duration-500" />
+                  </>
+                ) : (
+                  'Добавить в заявление'
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      <Dialog open={errorModal.isShow} onOpenChange={handleToggleErrorModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{errorModal.title}</DialogTitle>
+            <DialogDescription>{errorModal.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => history.back()}>Вернуться к списку</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
