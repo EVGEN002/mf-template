@@ -52,7 +52,15 @@ export default function Detail({ id }: DetailProps) {
 
   useEffect(() => {
     (async () => {
-      getSpatialData(id).then((res) => setData(res));
+      getSpatialData(id)
+        .then((res) => {
+          debugger;
+          setData(res)
+        })
+        .catch((err) => {
+          debugger;
+          console.log(err);
+        });
     })();
   }, []);
 
@@ -366,7 +374,7 @@ export default function Detail({ id }: DetailProps) {
 
   return (
     <div className="h-full overflow-auto px-[30px]">
-      <div className="mb-[30px] grid h-full gap-6 py-[30px] grid-cols-4">
+      <div className="mb-[30px] grid h-full grid-cols-4 gap-6 py-[30px]">
         <Card className="col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -488,7 +496,7 @@ export default function Detail({ id }: DetailProps) {
           </CardContent>
         </Card>
 
-        <div className="space-y-4 col-span-2">
+        <div className="col-span-2 space-y-4">
           <Card className="col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -497,9 +505,10 @@ export default function Detail({ id }: DetailProps) {
             </CardHeader>
             <CardContent>
               <div className="aspect-video overflow-hidden rounded-lg bg-gray-200">
-                {data?.geometry && (
-                  <Map type="spatial-data" geometry={data?.geometryString} />
-                )}
+                <Map
+                  type="spatial-data"
+                  geometry={data?.geometryString ?? ''}
+                />
               </div>
             </CardContent>
           </Card>
@@ -512,7 +521,7 @@ export default function Detail({ id }: DetailProps) {
             <CardContent>
               {data?.repoFiles?.repoAttachedFiles &&
               data?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {data?.repoFiles.repoAttachedFiles.map((file) => (
                     <img
                       src={`${returnRepoSrc(file?.code, 'jpg')}`}
@@ -524,7 +533,7 @@ export default function Detail({ id }: DetailProps) {
                 </div>
               ) : data?.attachedFilesList &&
                 data?.attachedFilesList?.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {data?.attachedFilesList.map((file) => (
                     <img
                       src={`${returnFileSrcFromPath(file?.path, 'jpg')}`}
@@ -548,7 +557,7 @@ export default function Detail({ id }: DetailProps) {
             <CardContent>
               {data?.repoFiles?.repoStorageFiles &&
               data?.repoFiles.repoStorageFiles.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 grid-cols-4">
+                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {data?.repoFiles.repoStorageFiles.map((file) =>
                     renderDoc(file)
                   )}

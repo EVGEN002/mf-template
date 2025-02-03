@@ -664,7 +664,7 @@ export default function Create() {
 
   return (
     <div className="h-full overflow-auto px-[30px]">
-      <div className="grid h-full gap-6 py-[30px] grid-cols-4">
+      <div className="grid gap-6 py-[30px] grid-cols-4">
         <Card className="flex flex-col col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center">

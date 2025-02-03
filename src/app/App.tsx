@@ -27,7 +27,7 @@ const App = ({ id, type }: AppProps) => {
     const fetchData = async () => {
       try {
         const data = (await getCurrentUser()) as CurrentUser;
-  
+
         setUserRole(data.role);
         // setUserRole("guest"); // TEST
       } catch {
@@ -42,12 +42,13 @@ const App = ({ id, type }: AppProps) => {
     <>
       {userRole && (
         <>
-          {type === 'view' && userRole !== 'admin' && id && (
-            <Detail id={id} />
-          )}
-          {type === 'view' && (userRole === 'admin' || userRole === 'operator')  && id && (
-            <DetailAdmin id={id} />
-          )}
+          {type === 'view' &&
+            userRole !== 'admin' &&
+            userRole !== 'operator' &&
+            id && <Detail id={id} />}
+          {type === 'view' &&
+            (userRole === 'admin' || userRole === 'operator') &&
+            id && <DetailAdmin id={id} />}
           {type === 'create' && <Create />}
           {type === 'edit' && id && <Edit id={id} />}
         </>

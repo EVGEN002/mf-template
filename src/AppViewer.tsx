@@ -7,8 +7,8 @@ const AppViewer = () => {
     <div>
       <div className="h-[5vh] bg-[#494949] px-8"></div>
       {/* <App type="edit" id="c9bcf574-9bc0-4223-a07b-a3cb35a239fd" /> */}
-      <App type="edit" id="5e1da25f-d9dd-40e0-9043-27cd90c4c660" />
-      {/* <App type="view" id="f2ea834a-b233-446b-a338-4103c76177da" /> */}
+      {/* <App type="edit" id="e4a1873d-8301-4714-ae04-d4913128e1b4" /> */}
+      <App type="view" id="e4a1873d-8301-4714-ae04-d4913128e1b4" />
     </div>
   );
 };
