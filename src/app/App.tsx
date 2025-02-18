@@ -10,7 +10,7 @@ import { getTodos } from '@/api';
 import Todo from '@/types/Todo';
 
 export default function App() {
-  const [data, setData] = useState<Todo[] | undefined>(undefined);
+  const [data, setData] = useState<Todo[] | undefined | null>(undefined);
 
   useEffect(() => {
     (async () => {
