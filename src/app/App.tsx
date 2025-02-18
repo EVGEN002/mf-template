@@ -10,13 +10,15 @@ import { getTodos } from '@/api';
 import Todo from '@/types/Todo';
 
 export default function App() {
-  const [data, setData] = useState<Todo[] | null>(null);
+  const [data, setData] = useState<Todo[] | undefined>(undefined);
 
   useEffect(() => {
     (async () => {
       const resposne = await getTodos();
 
-      setData(resposne);
+      if (resposne.success) {
+        setData(resposne.data);
+      }
     })();
   }, []);
 

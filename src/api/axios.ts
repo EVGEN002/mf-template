@@ -60,6 +60,7 @@ const request = {
   get: async <T>(url: string): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.get(url);
+
       return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -72,6 +73,7 @@ const request = {
   post: async <T, D>(url: string, data: D): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.post(url, data);
+
       return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -84,6 +86,7 @@ const request = {
   put: async <T, D>(url: string, data: D): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.put(url, data);
+
       return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -96,6 +99,7 @@ const request = {
   detele: async <T>(url: string): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.delete(url);
+
       return { success: true, data: response.data };
     } catch (error) {
       if (axios.isAxiosError(error)) {
