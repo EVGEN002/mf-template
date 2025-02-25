@@ -96,7 +96,7 @@ const request = {
       }
     }
   },
-  detele: async <T>(url: string): Promise<ApiResponse<T>> => {
+  delete: async <T>(url: string): Promise<ApiResponse<T>> => {
     try {
       const response: AxiosResponse<T> = await axiosInstance.delete(url);
 
