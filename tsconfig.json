@@ -10,7 +10,7 @@
     "strict": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
-    "types": ["node"],
+    "types": ["node", "ts-jest", "@testing-library/jest-dom"],
 
     /* Path resolving */
     "baseUrl": ".",

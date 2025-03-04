@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getTodos } from '@/api';
 
 import Todo from '@/types/Todo';
+import CodeViewer from '@/components/CodeViewer';
 
 export default function App() {
   const [data, setData] = useState<Todo[] | undefined | null>(undefined);
@@ -99,9 +100,7 @@ export default function App() {
           ))}
         </div>
 
-        <div className="mx-auto max-w-4xl rounded bg-black p-4 text-lime-400">
-          <pre>{JSON.stringify(data)}</pre>
-        </div>
+        <CodeViewer code={data} />
       </main>
 
       <footer className="mt-auto py-6">
