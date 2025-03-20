@@ -113,6 +113,9 @@ export default function Edit({ id }: { id: string }) {
   const [baseDictionary, setBaseDictionary] = useState<{
     [key: string]: any[];
   }>({});
+  const [unitedLocationList, setUnitedLocationList] = useState<
+    { guid: string; name: string }[] | null
+  >(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -397,6 +400,20 @@ export default function Edit({ id }: { id: string }) {
           const locationDictionary = data.data;
           const modifiedLocationDictionary =
             returnModifieLocationDictionary(locationDictionary);
+          setUnitedLocationList([
+            ...modifiedLocationDictionary.districts.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.naslegs.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.towns.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            }))
+          ]);
 
           setLocationDictionary(modifiedLocationDictionary);
         }
