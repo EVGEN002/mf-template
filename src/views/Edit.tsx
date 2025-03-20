@@ -402,7 +402,7 @@ export default function Edit({ id }: { id: string }) {
             returnModifieLocationDictionary(locationDictionary);
           setUnitedLocationList([
             ...modifiedLocationDictionary.districts.map((item) => ({
-              name: item.name,
+              name: item.fullName,
               guid: item.guid
             })),
             ...modifiedLocationDictionary.naslegs.map((item) => ({
@@ -954,7 +954,16 @@ export default function Edit({ id }: { id: string }) {
                     <div>
                       <Input
                         placeholder="Выберите местоположение"
-                        value={material.location?.split(',').join(', ') ?? ''}
+                        value={
+                          material.locationGuids
+                            ?.split(',')
+                            .map((item) =>
+                              unitedLocationList?.find(
+                                (unitedItem) => unitedItem.guid === item
+                              )?.name
+                            )
+                            .join(', ') ?? ''
+                        }
                         onChange={(e) => {}}
                         disabled
                       />
