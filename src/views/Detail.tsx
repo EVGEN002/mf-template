@@ -32,6 +32,8 @@ import { AttachedFile, Material, RepoFile } from '@/types/spatialData';
 import { toast } from 'react-toastify';
 import { Badge } from '@/components/ui/badge';
 import SpatialImages from '@/modules/SpatialImages';
+import returnModifieLocationDictionary from '@/helpers/returnModifieLocationDictionary';
+import { LocationDictionary } from '@/types/general';
 
 interface DetailProps {
   id: string;
@@ -42,6 +44,11 @@ export default function Detail({ id }: DetailProps) {
   const [baseDictionary, setBaseDictionary] = useState<{
     [key: string]: any[];
   }>({});
+  const [unitedLocationList, setUnitedLocationList] = useState<
+    { guid: string; name: string }[] | null
+  >(null);
+  const [locationDictionary, setLocationDictionary] =
+    useState<LocationDictionary | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [cartCount, setCartCount] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
@@ -253,7 +260,31 @@ export default function Detail({ id }: DetailProps) {
         'materialtypes',
         setBaseDictionary
       );
-      handleSetBaseDictionary<any>(r_location, 'location', setBaseDictionary);
+      if (r_location.status === 'fulfilled') {
+        const data = r_location.value;
+
+        if (data.data) {
+          const locationDictionary = data.data;
+          const modifiedLocationDictionary =
+            returnModifieLocationDictionary(locationDictionary);
+          setUnitedLocationList([
+            ...modifiedLocationDictionary.districts.map((item) => ({
+              name: item.fullName,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.naslegs.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.towns.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            }))
+          ]);
+
+          setLocationDictionary(modifiedLocationDictionary);
+        }
+      }
       handleSetBaseDictionary<any>(
         r_materialformats,
         'materialformats',
@@ -406,11 +437,16 @@ export default function Detail({ id }: DetailProps) {
                     Местоположение территории
                   </Label>
                   <p>
-                    {data?.location ? (
-                      data.location
-                        .split(',')
-                        .map((item) => item.trim())
-                        .join(', ')
+                    {data?.locationGuids ? (
+                      (data.locationGuids
+                        ?.split(',')
+                        .map(
+                          (item) =>
+                            unitedLocationList?.find(
+                              (unitedItem) => unitedItem.guid === item
+                            )?.name
+                        )
+                        .join(', ') ?? '')
                     ) : (
                       <Badge variant="secondary">Нет данных</Badge>
                     )}

@@ -71,6 +71,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SpatialImages from '@/modules/SpatialImages';
 import returnRepoSrc from '@/helpers/returnRepoSrc';
 import returnFileSrcFromPath from '@/helpers/returnFileSrcFromPath';
+import { LocationDictionary } from '@/types/general';
+import returnModifieLocationDictionary from '@/helpers/returnModifieLocationDictionary';
 
 const defaultMaterial: Material = {
   name: '',
@@ -122,6 +124,11 @@ export default function DetailAdmin({ id }: { id: string }) {
   const [baseDictionary, setBaseDictionary] = useState<{
     [key: string]: any[];
   }>({});
+  const [unitedLocationList, setUnitedLocationList] = useState<
+    { guid: string; name: string }[] | null
+  >(null);
+  const [locationDictionary, setLocationDictionary] =
+    useState<LocationDictionary | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [expandedImage, setExpandedImage] = useState<
@@ -312,7 +319,31 @@ export default function DetailAdmin({ id }: { id: string }) {
         'materialtypes',
         setBaseDictionary
       );
-      handleSetBaseDictionary<any>(r_location, 'location', setBaseDictionary);
+      if (r_location.status === 'fulfilled') {
+        const data = r_location.value;
+
+        if (data.data) {
+          const locationDictionary = data.data;
+          const modifiedLocationDictionary =
+            returnModifieLocationDictionary(locationDictionary);
+          setUnitedLocationList([
+            ...modifiedLocationDictionary.districts.map((item) => ({
+              name: item.fullName,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.naslegs.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.towns.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            }))
+          ]);
+
+          setLocationDictionary(modifiedLocationDictionary);
+        }
+      }
       handleSetBaseDictionary<any>(
         r_materialformats,
         'materialformats',
@@ -461,11 +492,18 @@ export default function DetailAdmin({ id }: { id: string }) {
                   </BaseLabel>
                   <BaseItem
                     readOnly={true}
-                    label="Местонахождение территории"
-                    value={material.location
-                      ?.split(',')
-                      .map((item) => item.trim())
-                      .join(', ')}
+                    label="Местоположение территории"
+                    value={
+                      material.locationGuids
+                        ?.split(',')
+                        .map(
+                          (item) =>
+                            unitedLocationList?.find(
+                              (unitedItem) => unitedItem.guid === item
+                            )?.name
+                        )
+                        .join(', ') ?? ''
+                    }
                     onChange={(event) => {}}
                   />
                   <BaseItemNumber
