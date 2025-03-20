@@ -8,6 +8,7 @@ interface TextareaItemProps {
   placeholder: string;
   onChange: ChangeEventHandler<HTMLTextAreaElement>;
   readOnly?: boolean;
+  required?: boolean;
 }
 
 const TextareaItem = ({
@@ -15,12 +16,18 @@ const TextareaItem = ({
   placeholder,
   value,
   onChange,
-  readOnly
+  readOnly,
+  required
 }: TextareaItemProps) => {
   return (
-    // <div className='space-y-1.5'>
     <div className="grid grid-cols-3 gap-2">
-      <Label className="col-span-1 font-medium">{label}</Label>
+      <Label
+        className="col-span-1 font-medium"
+        title={required ? 'Поле обязательно для заполнения' : ''}
+      >
+        {label}
+        {required && <span className="font-bold text-purple-500">*</span>}
+      </Label>
       <Textarea
         className="col-span-2"
         readOnly={readOnly}

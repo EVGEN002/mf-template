@@ -1,0 +1,51 @@
+import { Material } from "@/types/spatialData";
+
+const initialMaterial: Material = {
+  name: '',
+  mainGeoObjectName: '',
+  shortName: '',
+  barcode: null,
+  inventarNumber: null,
+  coordinateSystem: null,
+  projection: '',
+  formats: [],
+  materialCreatorId: null,
+  mapOwner: '',
+  storageSection: '',
+  scale: null,
+  yearCreate: null,
+  yearConformity: null,
+  secretStatus: null,
+  accessConditions: '',
+  location: '',
+  materialTypeId: null,
+  baseType: null,
+  status: null,
+  displayForm: null,
+  areaBySheetFrameSquareMeter: null,
+  baseUnitOfAccount: null,
+  numberOfUnits: null,
+  imageType: '',
+  resolution: '',
+  accuracy: '',
+  cloudiness: null,
+  lat: null,
+  lng: null,
+  geometryString: '',
+  wmsLayer: '',
+  accuracySpatialData: '',
+  inventarNumberOfPd: '',
+  copyNumber: '',
+  note: '',
+  numberOfSheets: null,
+  coordSystemId: 0,
+  locationGuids: '',
+  editor: '',
+  serializedAdditionalFields: '',
+  repoFiles: {
+    repoAttachedFiles: [],
+    repoStorageFiles: []
+  }
+};
+
+export default initialMaterial;

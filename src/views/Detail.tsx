@@ -25,9 +25,13 @@ import {
   postToCart
 } from '@/api';
 
-import { Material, RepoFile } from '@/types/spatialData';
+import returnRepoSrc from '@/helpers/returnRepoSrc';
+import returnFileSrcFromPath from '@/helpers/returnFileSrcFromPath';
+
+import { AttachedFile, Material, RepoFile } from '@/types/spatialData';
 import { toast } from 'react-toastify';
 import { Badge } from '@/components/ui/badge';
+import SpatialImages from '@/modules/SpatialImages';
 
 interface DetailProps {
   id: string;
@@ -46,6 +50,9 @@ export default function Detail({ id }: DetailProps) {
     title: string;
     description: string;
   }>({ isShow: false, title: '', description: '' });
+  const [expandedImage, setExpandedImage] = useState<
+    RepoFile | AttachedFile | null
+  >(null);
 
   const handleSetBaseDictionary = <T,>(
     promiseResult: PromiseSettledResult<T>,
@@ -293,42 +300,6 @@ export default function Detail({ id }: DetailProps) {
     fetchData();
   }, []);
 
-  const returnRepoSrc = (code: string | null, ext: string | null) => {
-    const MODE = process.env.MODE;
-    let src: string;
-
-    if (MODE === 'production') {
-      src = `/apimap/repo/${code}${ext}`;
-    } else if (MODE === 'local') {
-      src = `/sakhagis/apimap/repo/${code}${ext}`;
-    } else if (MODE === 'development') {
-      src = `https://yakit.pro/sakhagis/apimap/repo/${code}${ext}`;
-    } else {
-      src = '';
-    }
-
-    return src;
-  };
-
-  const returnFileSrcFromPath = (path: string | null, ext: string | null) => {
-    if (!path) return;
-    const MODE = process.env.MODE;
-    let src: string;
-    const normalizedPath = path.replace(/\\/g, '/');
-
-    if (MODE === 'production') {
-      src = `/storage/${normalizedPath}`;
-    } else if (MODE === 'local') {
-      src = `/sakhagis/storage/${normalizedPath}`;
-    } else if (MODE === 'development') {
-      src = `https://yakit.pro/sakhagis/storage/${normalizedPath}`;
-    } else {
-      src = '';
-    }
-
-    return src;
-  };
-
   const renderDoc = (file: RepoFile) => {
     const MODE = process.env.MODE;
     let link: string;
@@ -437,6 +408,9 @@ export default function Detail({ id }: DetailProps) {
                   <p>
                     {data?.location ? (
                       data.location
+                        .split(',')
+                        .map((item) => item.trim())
+                        .join(', ')
                     ) : (
                       <Badge variant="secondary">Нет данных</Badge>
                     )}
@@ -457,7 +431,7 @@ export default function Detail({ id }: DetailProps) {
                     <Label className="font-medium">Система координат</Label>
                     <p>
                       {baseDictionary?.coordinateSystems?.find(
-                        (item) => item?.id == data?.baseType
+                        (item) => item?.id == data?.coordSystemId
                       )?.name ?? <Badge variant="secondary">Нет данных</Badge>}
                     </p>
                   </div>
@@ -546,44 +520,13 @@ export default function Detail({ id }: DetailProps) {
                 </div>
               </CardContent>
             </Card>
-            <Card className="col-span-2">
-              <CardHeader>
-                <CardTitle>
-                  Изображения предпросмотра пространственных данных
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {data?.repoFiles?.repoAttachedFiles &&
-                data?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                  <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                    {data?.repoFiles.repoAttachedFiles.map((file) => (
-                      <img
-                        src={`${returnRepoSrc(file?.code, 'jpg')}`}
-                        alt="Preview 1"
-                        className="h-auto w-[400px] rounded-lg"
-                        width={400}
-                      />
-                    ))}
-                  </div>
-                ) : data?.attachedFilesList &&
-                  data?.attachedFilesList?.length > 0 ? (
-                  <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                    {data?.attachedFilesList.map((file) => (
-                      <img
-                        src={`${returnFileSrcFromPath(file?.path, 'jpg')}`}
-                        alt="Preview 1"
-                        className="h-auto w-[400px] rounded-lg"
-                        width={400}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-gray-500">
-                    Нет доступных файлов
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+
+            <SpatialImages
+              repoAttachedFiles={data?.repoFiles?.repoAttachedFiles}
+              attachedFilesList={data?.attachedFilesList}
+              onClickImage={(file) => setExpandedImage(file)}
+            />
+
             <Card className="col-span-3">
               <CardHeader>
                 <CardTitle>Файлы пространственных данных</CardTitle>
@@ -650,6 +593,28 @@ export default function Detail({ id }: DetailProps) {
           <DialogFooter>
             <Button onClick={() => history.back()}>Вернуться к списку</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!expandedImage}
+        onOpenChange={(open) => {
+          if (open === false) {
+            setExpandedImage(null);
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[90vh] max-w-[90vw] items-center justify-center">
+          {expandedImage && (
+            <img
+              src={
+                'code' in expandedImage
+                  ? returnRepoSrc(expandedImage.code) // для RepoFile
+                  : returnFileSrcFromPath(expandedImage.path) // для AttachedFile
+              }
+              alt="expanede image"
+              className="h-full w-auto object-cover"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

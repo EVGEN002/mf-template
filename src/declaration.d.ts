@@ -8,6 +8,7 @@ interface MapComponentContainerProps {
   onFindMaterials?: (data: any) => void; // используется в SpartialSearch
   onSetGeometry?: (coordinates: any) => void;
   onDrawed?: (data: any) => void; // через функцию onDrawed отправляем FeatureCollection
+  onDrawedCenter?: (data: [number, number]) => void;
   geometry?: any; // передаем FeatureCollection
   poiCoordinates?: any;
   coordinates?: [number, number]; // Передаем если получаем приватную точку в view-point или edit-point

@@ -5,11 +5,7 @@ import './AppViewer.css';
 const AppViewer = () => {
   return (
     <div>
-      <div className="h-[5vh] bg-[#494949] px-8"></div>
-      {/* <App type="edit" id="c9bcf574-9bc0-4223-a07b-a3cb35a239fd" /> */}
-      {/* <App type="edit" id="e4a1873d-8301-4714-ae04-d4913128e1b4" /> */}
-      <App type="view" id="e4a1873d-8301-4714-ae04-d4913128e1b4" />
-      {/* <App type="create" id="e4a1873d-8301-4714-ae04-d4913128e1b4" /> */}
+      <App type="create" id="640e8cc0-fdf0-460e-8651-fbd86d62a2b5" />
     </div>
   );
 };

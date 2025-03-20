@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Pencil, ChevronDown, LoaderCircle, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Pencil,
+  ChevronDown,
+  LoaderCircle,
+  X,
+  Check,
+  Trash2
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,10 +17,11 @@ import Map from 'MapProvider/MapComponentContainer';
 import '@/assets/global.css';
 
 import {
+  deleteRepoFile,
+  deleteSpatialData,
   getDictionary,
   getDictionaryFundsettings,
   getSpatialData,
-  postSpatialData,
   putSpatialData,
   uploadRepoFile
 } from '@/api';
@@ -21,12 +30,13 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
-  DialogTitle,
-  DialogTrigger
+  DialogTitle
 } from '@/components/ui/dialog';
 
-import { Material, RepoFile } from '@/types/spatialData';
+import { AttachedFile, Material, RepoFile } from '@/types/spatialData';
 import BaseItem from '@/components/BaseItem';
 import TextareaItem from '@/components/TextareaItem';
 import BaseItemNumber from '@/components/BaseItemNumber';
@@ -45,8 +55,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -54,49 +62,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 
-const defaultMaterial: Material = {
-  name: '',
-  mainGeoObjectName: '',
-  shortName: '',
-  barcode: null,
-  inventarNumber: null,
-  coordinateSystem: null,
-  projection: '',
-  formats: [],
-  materialCreatorId: null,
-  mapOwner: '',
-  storageSection: '',
-  scale: null,
-  yearCreate: null,
-  yearConformity: null,
-  secretStatus: null,
-  accessConditions: '',
-  location: '',
-  materialTypeId: null,
-  baseType: null,
-  status: null,
-  displayForm: null,
-  areaBySheetFrameSquareMeter: null,
-  baseUnitOfAccount: null,
-  numberOfUnits: null,
-  imageType: '',
-  resolution: '',
-  accuracy: '',
-  cloudiness: null,
-  lat: null,
-  lng: null,
-  geometryString: '',
-  wmsLayer: '',
-  accuracySpatialData: '',
-  inventarNumberOfPd: '',
-  copyNumber: '',
-  note: '',
-  numberOfSheets: null,
-  coordSystemId: null,
-  locationGuids: '',
-  editor: '',
-  serializedAdditionalFields: ''
-};
+import returnRepoSrc from '@/helpers/returnRepoSrc';
+import returnFileSrcFromPath from '@/helpers/returnFileSrcFromPath';
+import returnModifiedMaterialData from '@/helpers/returnModifieMaterialData';
+import returnModifieLocationDictionary from '@/helpers/returnModifieLocationDictionary';
+import SpatialImages from '@/modules/SpatialImages';
+import republicDictItem from '@/utils/constants/republicDictItem';
+import TownCheckbox from '@/components/TownCheckbox';
+
+import initialMaterial from '@/utils/initialMaterial';
 
 interface SectionDictionary {
   cellValues: string[];
@@ -107,9 +81,10 @@ interface SectionDictionary {
 
 export interface DistrictLocation {
   guid: string;
-  id: number;
+  id: string;
   name: string;
   fullName: string;
+  disabled?: boolean;
 }
 
 export interface NaslegLocation {
@@ -124,6 +99,7 @@ export interface TownLocation {
   id: number;
   name: string;
   naslegID: number;
+  districtID: number;
 }
 
 export interface LocationDictionary {
@@ -133,13 +109,10 @@ export interface LocationDictionary {
 }
 
 export default function Edit({ id }: { id: string }) {
-  const [data, setData] = useState<Material | null>(null);
-  const [material, setMaterial] = useState<Material>(defaultMaterial);
-  const [updatedMaterial, setUpdatedMaterial] = useState<Partial<Material>>({});
+  const [material, setMaterial] = useState<Material>(initialMaterial);
   const [baseDictionary, setBaseDictionary] = useState<{
     [key: string]: any[];
   }>({});
-  const [isEdited, setIsEdited] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -160,8 +133,17 @@ export default function Edit({ id }: { id: string }) {
   const [imageTitle, setImageTitle] = useState<string | null>(null);
   const [imageList, setImageList] = useState<FileList | null>(null);
 
+  const [expandedImage, setExpandedImage] = useState<
+    RepoFile | AttachedFile | null
+  >(null);
+
   const [sectionDictionary, setSectionDictionary] =
     useState<SectionDictionary | null>(null);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSuccessDeleteModal, setShowSuccessDeleteModal] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSetBaseDictionary = <T,>(
     promiseResult: PromiseSettledResult<T>,
@@ -171,9 +153,9 @@ export default function Edit({ id }: { id: string }) {
     if (promiseResult.status === 'fulfilled') {
       const promiseData = promiseResult.value;
 
-      setter((prev) => ({ ...prev, [key]: promiseData }));
+      setter((prev) => ({ ...prev, [key]: (promiseData as any).data }));
 
-      return promiseData;
+      return (promiseData as any).data;
     } else if (promiseResult.status === 'rejected') {
       console.error(promiseResult.reason);
 
@@ -397,7 +379,10 @@ export default function Edit({ id }: { id: string }) {
         const data = r_material.value;
 
         if (data.data) {
-          setMaterial(data.data);
+          const material = data.data;
+          const modifiedMaterial = returnModifiedMaterialData(material);
+
+          setMaterial(modifiedMaterial);
         }
       }
       if (r_materialshelfs.status === 'fulfilled') {
@@ -408,7 +393,13 @@ export default function Edit({ id }: { id: string }) {
       if (r_location.status === 'fulfilled') {
         const data = r_location.value;
 
-        setLocationDictionary(data.data);
+        if (data.data) {
+          const locationDictionary = data.data;
+          const modifiedLocationDictionary =
+            returnModifieLocationDictionary(locationDictionary);
+
+          setLocationDictionary(modifiedLocationDictionary);
+        }
       }
       setIsLoaded(true);
     };
@@ -430,11 +421,78 @@ export default function Edit({ id }: { id: string }) {
 
       if (response.success) {
         toast.success('Материал успешно сохранен');
-        setSending(false);
       } else {
         toast.error('Ошибка при сохранении материала');
-        setSending(false);
       }
+      setSending(false);
+    }
+  };
+
+  const deleteMaterial = async () => {
+    setSending(true);
+
+    if (material) {
+      const response = await deleteSpatialData(id);
+
+      if (response.success) {
+        toast.info('Материал успешно удален');
+        setShowSuccessDeleteModal(true);
+      } else {
+        toast.error('Не удалось удалить материал');
+      }
+      setShowDeleteModal(false);
+      setSending(false);
+    }
+  };
+
+  const deleteFile = async (
+    type: 'file' | 'image',
+    code: string,
+    uuid?: string
+  ) => {
+    if (!code) return;
+    setSending(true);
+
+    try {
+      const response = await deleteRepoFile(code);
+
+      if (response.success) {
+        toast.info('Файл успешно удален');
+
+        if (type === 'file') {
+          setMaterial((prev) => {
+            return {
+              ...prev,
+              repoFiles: prev.repoFiles
+                ? {
+                    ...prev.repoFiles,
+                    repoStorageFiles: prev.repoFiles.repoStorageFiles.filter(
+                      (item) => item.uuid !== uuid
+                    )
+                  }
+                : prev.repoFiles
+            };
+          });
+        } else if (type === 'image') {
+          setMaterial((prev) => {
+            return {
+              ...prev,
+              repoFiles: prev.repoFiles
+                ? {
+                    ...prev.repoFiles,
+                    repoAttachedFiles: prev.repoFiles.repoAttachedFiles.filter(
+                      (item) => item.uuid !== uuid
+                    )
+                  }
+                : prev.repoFiles
+            };
+          });
+        }
+      } else {
+        toast.error('Не удалось удалить файл');
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -450,12 +508,16 @@ export default function Edit({ id }: { id: string }) {
           ...selectedDistricts.map((d) => d.guid),
           ...selectedNaslegs.map((n) => n.guid),
           ...selectedTowns.map((t) => t.guid)
-        ].join(','),
+        ]
+          .map((item) => item.trim())
+          .join(','),
         location: [
           ...selectedDistricts.map((d) => d.fullName),
           ...selectedNaslegs.map((n) => n.name),
           ...selectedTowns.map((t) => t.name)
-        ].join(',')
+        ]
+          .map((item) => item.trim())
+          .join(',')
       }));
     })();
   }, [selectedDistricts, selectedNaslegs, selectedTowns]);
@@ -477,21 +539,21 @@ export default function Edit({ id }: { id: string }) {
     return href;
   };
 
-  const returnRepoSrc = (code: string | null, ext: string | null) => {
+  const backToListHref = () => {
     const MODE = process.env.MODE;
-    let src: string;
+    let href: string;
 
     if (MODE === 'production') {
-      src = `/apimap/repo/${code}${ext}`;
+      href = `/material`;
     } else if (MODE === 'local') {
-      src = `/sakhagis/apimap/repo/${code}${ext}`;
+      href = `/sakhagis/material`;
     } else if (MODE === 'development') {
-      src = `https://yakit.pro/sakhagis/apimap/repo/${code}.${ext}`;
+      href = `/sakhagis/material`;
     } else {
-      src = '';
+      href = '';
     }
 
-    return src;
+    return href;
   };
 
   const renderDoc = (file: RepoFile) => {
@@ -521,25 +583,46 @@ export default function Edit({ id }: { id: string }) {
 
     const formData = new FormData();
 
-    // Append each file to FormData
     for (let i = 0; i < files.length; i++) {
       formData.append('tip', 'file');
       formData.append('obj', 'material');
       formData.append('obj_code', id);
-      formData.append('obj_field', 'storagedfile');
+      formData.append('obj_field', 'storagefile');
       formData.append('title', fileTitle ?? 'Безымянный файл');
       formData.append('files', files[i]);
     }
 
-    // Исправить здесь при проблемах уведомления об успешной/ошибке загрузке
+    setIsLoading(true);
+
     try {
       const repoResponse = await uploadRepoFile(formData);
 
-      toast.success('Файл успешно загружен');
-      setShowAddFileModal(false);
-    } catch {
-      toast.error('Ошибка при загрузке файла');
+      if (repoResponse.success && repoResponse.data) {
+        setMaterial((prev) => {
+          return {
+            ...prev,
+            repoFiles: prev.repoFiles
+              ? {
+                  ...prev.repoFiles,
+                  repoStorageFiles: [
+                    ...prev.repoFiles.repoStorageFiles,
+                    ...(repoResponse.data as any)
+                  ]
+                }
+              : prev.repoFiles
+          };
+        });
+
+        toast.success('Файл успешно загружен');
+        setShowAddFileModal(false);
+      } else {
+        toast.error('Ошибка при загрузке файла');
+      }
+    } catch (error) {
+      console.error(error);
     }
+
+    setIsLoading(false);
   };
 
   const sendImage = async () => {
@@ -549,7 +632,6 @@ export default function Edit({ id }: { id: string }) {
 
     const formData = new FormData();
 
-    // Append each file to FormData
     for (let i = 0; i < files.length; i++) {
       formData.append('tip', 'file');
       formData.append('obj', 'material');
@@ -559,15 +641,56 @@ export default function Edit({ id }: { id: string }) {
       formData.append('files', files[i]);
     }
 
-    // Исправить здесь при проблемах уведомления об успешной/ошибке загрузке
+    setIsLoading(true);
+
     try {
       const repoResponse = await uploadRepoFile(formData);
 
-      toast.success('Изображение успешно загружено');
-      setShowAddFileModal(false);
-    } catch {
-      toast.error('Ошибка при загрузке изображения');
+      if (repoResponse.success) {
+        setMaterial((prev) => {
+          return {
+            ...prev,
+            repoFiles: prev.repoFiles
+              ? {
+                  ...prev.repoFiles,
+                  repoAttachedFiles: [
+                    ...prev.repoFiles.repoAttachedFiles,
+                    ...(repoResponse.data as RepoFile[])
+                  ]
+                }
+              : prev.repoFiles
+          };
+        });
+
+        toast.success('Изображение успешно загружено');
+        setShowAddImageModal(false);
+      } else {
+        toast.error('Ошибка при загрузке изображения');
+      }
+    } catch (error) {
+      console.error(error);
     }
+
+    setIsLoading(false);
+  };
+
+  const renderDocFromPath = (path: string | null, description: string) => {
+    if (!path) return;
+    const MODE = process.env.MODE;
+    let src: string;
+    const normalizedPath = path.replace(/\\/g, '/');
+
+    if (MODE === 'production') {
+      src = `/storage/${normalizedPath}`;
+    } else if (MODE === 'local') {
+      src = `/sakhagis/storage/${normalizedPath}`;
+    } else if (MODE === 'development') {
+      src = `https://yakit.pro/sakhagis/storage/${normalizedPath}`;
+    } else {
+      src = '';
+    }
+
+    return <a href={src}>{description}</a>;
   };
 
   return (
@@ -585,10 +708,11 @@ export default function Edit({ id }: { id: string }) {
               {isLoaded && (
                 <>
                   <TextareaItem
-                    label="Наименование*"
+                    label="Наименование"
                     placeholder="Введите наименование материала"
                     value={material?.name ?? undefined}
                     onChange={(event) => set('name', event.target.value)}
+                    required
                   />
                   <BaseItem
                     label="Главный географический объект"
@@ -598,11 +722,12 @@ export default function Edit({ id }: { id: string }) {
                     }
                   />
                   <BaseItem
-                    label="Короткое наименование*"
+                    label="Короткое наименование"
                     value={material?.shortName}
                     onChange={(event) => set('shortName', event.target.value)}
+                    required
                   />
-                  <BaseLabel label="Вид пространнственных данных*">
+                  <BaseLabel label="Вид пространственных данных" required>
                     <Select
                       value={
                         baseDictionary?.materialtypes?.find(
@@ -617,7 +742,7 @@ export default function Edit({ id }: { id: string }) {
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите вид пространнственных данных" />
+                        <SelectValue placeholder="Выберите вид пространственных данных" />
                       </SelectTrigger>
                       <SelectContent>
                         {baseDictionary.materialtypes?.map((item: any) => (
@@ -627,23 +752,24 @@ export default function Edit({ id }: { id: string }) {
                     </Select>
                   </BaseLabel>
                   <BaseItem
-                    label="Инвентарный номер*"
+                    label="Инвентарный номер"
                     value={material?.inventarNumber}
                     onChange={(event) =>
                       set('inventarNumber', event.target.value)
                     }
+                    required
                   />
-                  <BaseLabel label="Система координат*">
+                  <BaseLabel label="Система координат" required>
                     <Select
                       value={
                         baseDictionary?.coordinateSystems?.find(
-                          (item) => item?.id == material?.baseType
+                          (item) => item?.id == material?.coordSystemId
                         )?.id
                       }
                       onValueChange={(value) =>
                         setMaterial((prev) => ({
                           ...prev,
-                          coordinateSystem: Number(value) ?? null
+                          coordSystemId: Number(value) ?? null
                         }))
                       }
                     >
@@ -663,7 +789,7 @@ export default function Edit({ id }: { id: string }) {
                     onChange={(event) => set('projection', event.target.value)}
                   />
                   <TextareaItem
-                    label="Конур простр. данных в формате GeoJSON"
+                    label="Контур простр. данных в формате GeoJSON"
                     placeholder="Вставьте контур простр. данных в формате GeoJSON"
                     value={material?.geometryString ?? undefined}
                     onChange={(event) =>
@@ -711,7 +837,7 @@ export default function Edit({ id }: { id: string }) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </BaseLabel>
-                  <BaseLabel label="Организация изготовитель*">
+                  <BaseLabel label="Организация-изготовитель" required>
                     <Select
                       value={
                         baseDictionary?.materialcreator?.find(
@@ -763,18 +889,20 @@ export default function Edit({ id }: { id: string }) {
                     onChange={(event) => set('scale', event.target.value)}
                   />
                   <BaseItemNumber
-                    label="Год создания*"
+                    label="Год создания"
                     value={material?.yearCreate}
                     onChange={(event) => set('yearCreate', event.target.value)}
+                    required
                   />
                   <BaseItemNumber
-                    label="Год соответствия местности*"
+                    label="Год соответствия местности"
                     value={material?.yearConformity}
                     onChange={(event) =>
                       set('yearConformity', event.target.value)
                     }
+                    required
                   />
-                  <BaseLabel label="Секретность*">
+                  <BaseLabel label="Секретность" required>
                     <Select
                       value={
                         baseDictionary?.secretStatusTypes?.find(
@@ -809,11 +937,8 @@ export default function Edit({ id }: { id: string }) {
                     <div>
                       <Input
                         placeholder="Выберите местоположение"
-                        value={material.location ?? ''}
-                        onChange={(e) => {
-                          console.log(e.target.value);
-                          debugger;
-                        }}
+                        value={material.location?.split(',').join(', ') ?? ''}
+                        onChange={(e) => {}}
                         disabled
                       />
                       <Button
@@ -826,7 +951,7 @@ export default function Edit({ id }: { id: string }) {
                       </Button>
                     </div>
                   </BaseLabel>
-                  <BaseLabel label="Базовый тип*">
+                  <BaseLabel label="Базовый тип" required>
                     <Select
                       value={
                         baseDictionary?.basetype?.find(
@@ -850,7 +975,7 @@ export default function Edit({ id }: { id: string }) {
                       </SelectContent>
                     </Select>
                   </BaseLabel>
-                  <BaseLabel label="Статус*">
+                  <BaseLabel label="Статус" required>
                     <Select
                       value={String(material.status)}
                       onValueChange={(value) =>
@@ -869,7 +994,7 @@ export default function Edit({ id }: { id: string }) {
                       </SelectContent>
                     </Select>
                   </BaseLabel>
-                  <BaseLabel label="Форма предоставления данных*">
+                  <BaseLabel label="Форма предоставления данных" required>
                     <Select
                       value={
                         baseDictionary?.displayforms?.find(
@@ -884,7 +1009,7 @@ export default function Edit({ id }: { id: string }) {
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите вид пространнственных данных" />
+                        <SelectValue placeholder="Выберите вид пространственных данных" />
                       </SelectTrigger>
                       <SelectContent>
                         {baseDictionary.displayforms?.map((item: any) => (
@@ -942,16 +1067,18 @@ export default function Edit({ id }: { id: string }) {
                     }
                   />
                   <BaseItemNumber
-                    label="Широта*"
+                    label="Широта"
                     value={material?.lat}
                     onChange={(event) => set('lat', event.target.value)}
+                    required
                   />
                   <BaseItemNumber
-                    label="Долгота*"
+                    label="Долгота"
                     value={material?.lng}
                     onChange={(event) => set('lng', event.target.value)}
+                    required
                   />
-                  <BaseLabel label="Базовая расчетная единица*">
+                  <BaseLabel label="Базовая расчетная единица" required>
                     <Select
                       value={
                         baseDictionary?.materialbaseunits?.find(
@@ -979,9 +1106,8 @@ export default function Edit({ id }: { id: string }) {
               )}
               {!isLoaded && (
                 <>
-                  {new Array(10).fill(null).map((_, index) => (
-                    <div className="space-y-1.5" key={index}>
-                      <Skeleton className="h-3 w-[200px]" />
+                  {new Array(25).fill(null).map((_, index) => (
+                    <div key={index}>
                       <Skeleton className="h-10 w-full" />
                     </div>
                   ))}
@@ -1009,43 +1135,21 @@ export default function Edit({ id }: { id: string }) {
                       set('lat', coordinates[1]);
                     }
                   }}
+                  onDrawed={(geo) => set('geometryString', JSON.stringify(geo))}
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>
-                Изображения предпросмотра пространственных данных
-              </CardTitle>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowAddImageModal(true)}
-              >
-                Загрузить изображение
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {material?.repoFiles?.repoAttachedFiles &&
-              material?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {material?.repoFiles.repoAttachedFiles.map((file) => (
-                    <img
-                      src={`${returnRepoSrc(file?.code, 'jpg')}`}
-                      alt="Preview 1"
-                      className="h-auto w-[400px] rounded-lg"
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-gray-500">
-                  Нет доступных файлов
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SpatialImages
+            repoAttachedFiles={material?.repoFiles?.repoAttachedFiles}
+            attachedFilesList={material?.attachedFilesList}
+            onClickDownLoad={() => setShowAddImageModal(true)}
+            onClickImage={(file) => setExpandedImage(file)}
+            onClickDelete={(file) => {
+              if ('code' in file) deleteFile('image', file.code, file?.uuid);
+            }}
+          />
 
           <Card className="col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -1059,11 +1163,31 @@ export default function Edit({ id }: { id: string }) {
               </Button>
             </CardHeader>
             <CardContent>
-              {data?.repoFiles?.repoStorageFiles &&
-              data?.repoFiles.repoStorageFiles.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {data?.repoFiles.repoStorageFiles.map((file) =>
-                    renderDoc(file)
+              {material?.repoFiles?.repoStorageFiles &&
+              material?.repoFiles.repoStorageFiles.length > 0 ? (
+                <div className="flex flex-wrap gap-4">
+                  {material?.repoFiles.repoStorageFiles.map((file) => (
+                    <div className="flex items-center gap-2">
+                      {renderDoc(file)}
+                      <Button
+                        className="h-7 w-7"
+                        variant="outline"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteFile('file', file.code, file?.uuid);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : material?.storageFilesList &&
+                material?.storageFilesList?.length > 0 ? (
+                <div className="flex flex-wrap gap-4">
+                  {material?.storageFilesList.map((file: any) =>
+                    renderDocFromPath(file.path, file.description)
                   )}
                 </div>
               ) : (
@@ -1082,16 +1206,25 @@ export default function Edit({ id }: { id: string }) {
               Назад
             </Button>
           </a>
-          <Button onClick={updateMaterial} disabled={!isLoaded || sending}>
-            {sending ? (
-              <>
-                Сохранение{' '}
-                <LoaderCircle className="ml-2 animate-spin duration-500" />
-              </>
-            ) : (
-              'Сохранить изменения'
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              disabled={!isLoaded || sending}
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Удалить материал
+            </Button>
+            <Button onClick={updateMaterial} disabled={!isLoaded || sending}>
+              {sending ? (
+                <>
+                  Сохранение{' '}
+                  <LoaderCircle className="ml-2 animate-spin duration-500" />
+                </>
+              ) : (
+                'Сохранить изменения'
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1126,6 +1259,61 @@ export default function Edit({ id }: { id: string }) {
                               (sDistrict) => sDistrict.name === district.name
                             )}
                             onCheckedChange={() => {
+                              if (district.guid === republicDictItem.guid) {
+                                setSelectedDistricts([]);
+                                setSelectedNaslegs([]);
+                                setSelectedTowns([]);
+
+                                const disabledDistricts =
+                                  locationDictionary.districts.map((item) => {
+                                    if (item.guid !== republicDictItem.guid)
+                                      return { ...item, disabled: true };
+                                    return item;
+                                  });
+                                const defaultDistricts =
+                                  locationDictionary.districts.map((item) => {
+                                    if (item.guid !== republicDictItem.guid)
+                                      return { ...item, disabled: false };
+                                    return item;
+                                  });
+
+                                if (
+                                  selectedDistricts.some(
+                                    (sDistrict) =>
+                                      sDistrict.name === district.name
+                                  )
+                                ) {
+                                  setSelectedDistricts((prev) =>
+                                    prev.filter(
+                                      (item) => item.name !== district.name
+                                    )
+                                  );
+                                  setLocationDictionary((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          districts: defaultDistricts
+                                        }
+                                      : prev
+                                  );
+                                } else {
+                                  setSelectedDistricts((prev) => [
+                                    ...prev,
+                                    district
+                                  ]);
+                                  setLocationDictionary((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          districts: disabledDistricts
+                                        }
+                                      : prev
+                                  );
+                                }
+
+                                return;
+                              }
+
                               setSelectedNaslegs([]);
                               setSelectedTowns([]);
 
@@ -1142,6 +1330,7 @@ export default function Edit({ id }: { id: string }) {
                                     district
                                   ]);
                             }}
+                            disabled={district?.disabled}
                           />
                           <Label>{district.fullName}</Label>
                         </div>
@@ -1161,7 +1350,8 @@ export default function Edit({ id }: { id: string }) {
                       locationDictionary.naslegs
                         .filter((nasleg) =>
                           selectedDistricts.some(
-                            (sDistrict) => sDistrict.id === nasleg.districtID
+                            (sDistrict) =>
+                              String(sDistrict.id) === String(nasleg.districtID)
                           )
                         )
                         .map((nasleg) => (
@@ -1201,34 +1391,29 @@ export default function Edit({ id }: { id: string }) {
               <CardContent>
                 <ScrollArea className="h-[500px]">
                   <div className="space-y-2">
-                    {locationDictionary &&
-                      locationDictionary.towns
-                        .filter((town) =>
+                    {locationDictionary?.towns?.map((town) => {
+                      const isTownVisible =
+                        (selectedNaslegs.length > 0 &&
                           selectedNaslegs.some(
                             (sNasleg) => sNasleg.id === town.naslegID
-                          )
-                        )
-                        .map((town) => (
-                          <div className="flex items-start space-x-2">
-                            <Checkbox
-                              checked={selectedTowns.some(
-                                (sTown) => sTown.name === town.name
-                              )}
-                              onCheckedChange={() =>
-                                selectedTowns.some(
-                                  (sTown) => sTown.name === town.name
-                                )
-                                  ? setSelectedTowns((prev) =>
-                                      prev.filter(
-                                        (item) => item.name !== town.name
-                                      )
-                                    )
-                                  : setSelectedTowns((prev) => [...prev, town])
-                              }
-                            />
-                            <Label>{town.name}</Label>
-                          </div>
-                        ))}
+                          )) ||
+                        (selectedNaslegs.length === 0 &&
+                          selectedDistricts.some(
+                            (sDistrict) =>
+                              String(sDistrict.id) === String(town.districtID)
+                          ));
+
+                      if (!isTownVisible) return null;
+
+                      return (
+                        <TownCheckbox
+                          key={town.id}
+                          town={town}
+                          selected={selectedTowns}
+                          onToggle={setSelectedTowns}
+                        />
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </CardContent>
@@ -1362,19 +1547,10 @@ export default function Edit({ id }: { id: string }) {
             </DialogClose>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>Название файла</Label>
-            <Input
-              className="w-full"
-              type="text"
-              placeholder="Введите наименование файла"
-              value={fileTitle ?? ''}
-              onChange={(event) => setFileTitle(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
             <Input
               className="w-full"
               type="file"
+              multiple
               onChange={(event) => setFileList(event.target.files)}
             />
           </div>
@@ -1384,9 +1560,15 @@ export default function Edit({ id }: { id: string }) {
               onClick={() => {
                 sendFile();
               }}
-              disabled={!fileTitle || !fileList}
+              disabled={!fileList?.length || isLoading}
             >
-              Подтвердить
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  В процессе <LoaderCircle className="h-4 w-4 animate-spin" />
+                </span>
+              ) : (
+                <>Подтвердить</>
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -1405,19 +1587,10 @@ export default function Edit({ id }: { id: string }) {
             </DialogClose>
           </DialogHeader>
           <div>
-            <Label>Название файла</Label>
-            <Input
-              className="w-full"
-              type="text"
-              placeholder="Введите наименование файла"
-              value={imageTitle ?? ''}
-              onChange={(event) => setImageTitle(event.target.value)}
-            />
-          </div>
-          <div>
             <Input
               className="w-full"
               type="file"
+              multiple
               onChange={(event) => setImageList(event.target.files)}
             />
           </div>
@@ -1427,11 +1600,85 @@ export default function Edit({ id }: { id: string }) {
               onClick={() => {
                 sendImage();
               }}
-              disabled={!imageTitle || !imageList}
+              disabled={!imageList?.length || isLoading}
             >
-              Подтвердить
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  В процессе <LoaderCircle className="h-4 w-4 animate-spin" />
+                </span>
+              ) : (
+                <>Подтвердить</>
+              )}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удаление материала</DialogTitle>
+            <DialogDescription>
+              Вы уверены что хотите удалить материал?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Отмена
+            </Button>
+            <Button variant="destructive" onClick={() => deleteMaterial()}>
+              {sending ? (
+                <>
+                  Удаление{' '}
+                  <LoaderCircle className="ml-2 animate-spin duration-500" />
+                </>
+              ) : (
+                'Удалить материал'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSuccessDeleteModal}>
+        <DialogContent defaultClose={false}>
+          <DialogHeader>
+            <DialogTitle className="item-center flex gap-2">
+              Материал успешно удален{' '}
+              <Check className="h-4 w-4 text-green-400" />
+            </DialogTitle>
+            <DialogDescription>
+              Материал "{material?.name}" был удален
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <a href={backToListHref()}>
+              <Button>Вернуться к списку материалов</Button>
+            </a>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!expandedImage}
+        onOpenChange={(open) => {
+          if (open === false) {
+            setExpandedImage(null);
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[90vh] max-w-[90vw] items-center justify-center">
+          {expandedImage && (
+            <img
+              src={
+                'code' in expandedImage
+                  ? returnRepoSrc(expandedImage.code) // для RepoFile
+                  : returnFileSrcFromPath(expandedImage.path) // для AttachedFile
+              }
+              alt="expanede image"
+              className="h-full w-auto object-cover"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

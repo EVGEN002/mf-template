@@ -18,6 +18,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Map from 'MapProvider/MapComponentContainer';
 
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog';
+
 import '@/assets/global.css';
 
 import {
@@ -28,7 +39,12 @@ import {
   putSpatialData
 } from '@/api';
 
-import { Material, RepoFile, StoragedFile } from '@/types/spatialData';
+import {
+  AttachedFile,
+  Material,
+  RepoFile,
+  StoragedFile
+} from '@/types/spatialData';
 import BaseItem from '@/components/BaseItem';
 import TextareaItem from '@/components/TextareaItem';
 import BaseItemNumber from '@/components/BaseItemNumber';
@@ -52,6 +68,9 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import SpatialImages from '@/modules/SpatialImages';
+import returnRepoSrc from '@/helpers/returnRepoSrc';
+import returnFileSrcFromPath from '@/helpers/returnFileSrcFromPath';
 
 const defaultMaterial: Material = {
   name: '',
@@ -104,6 +123,10 @@ export default function DetailAdmin({ id }: { id: string }) {
     [key: string]: any[];
   }>({});
   const [isLoaded, setIsLoaded] = useState(false);
+
+  const [expandedImage, setExpandedImage] = useState<
+    RepoFile | AttachedFile | null
+  >(null);
 
   const handleSetBaseDictionary = <T,>(
     promiseResult: PromiseSettledResult<T>,
@@ -331,35 +354,8 @@ export default function DetailAdmin({ id }: { id: string }) {
     fetchData();
   }, []);
 
-  const updateMaterial = async () => {
-    const response = await putSpatialData(id, material);
-
-    if (response.success) {
-      toast.success('Материал успешно сохранен');
-    } else {
-      toast.error('Ошибка при сохранении материала');
-    }
-  };
-
   const set = (key: string, value: any) => {
     setMaterial((prev: any) => ({ ...prev, [key]: value }));
-  };
-
-  const backHref = () => {
-    const MODE = process.env.MODE;
-    let href: string;
-
-    if (MODE === 'production') {
-      href = '/admin/fpd';
-    } else if (MODE === 'local') {
-      href = '/sakhagis/admin/fpd';
-    } else if (MODE === 'development') {
-      href = 'https://yakit.pro/sakhagis/admin/fpd';
-    } else {
-      href = '';
-    }
-
-    return href;
   };
 
   const editHref = () => {
@@ -377,42 +373,6 @@ export default function DetailAdmin({ id }: { id: string }) {
     }
 
     return href;
-  };
-
-  const returnRepoSrc = (code: string | null, ext: string | null) => {
-    const MODE = process.env.MODE;
-    let src: string;
-
-    if (MODE === 'production') {
-      src = `/apimap/repo/${code}${ext}`;
-    } else if (MODE === 'local') {
-      src = `/sakhagis/apimap/repo/${code}${ext}`;
-    } else if (MODE === 'development') {
-      src = `https://yakit.pro/sakhagis/apimap/repo/${code}${ext}`;
-    } else {
-      src = '';
-    }
-
-    return src;
-  };
-
-  const returnFileSrcFromPath = (path: string | null, ext: string | null) => {
-    if (!path) return;
-    const MODE = process.env.MODE;
-    let src: string;
-    const normalizedPath = path.replace(/\\/g, '/');
-
-    if (MODE === 'production') {
-      src = `/storage/${normalizedPath}`;
-    } else if (MODE === 'local') {
-      src = `/sakhagis/storage/${normalizedPath}`;
-    } else if (MODE === 'development') {
-      src = `https://yakit.pro/sakhagis/storage/${normalizedPath}`;
-    } else {
-      src = '';
-    }
-
-    return src;
   };
 
   const renderDoc = (file: RepoFile) => {
@@ -474,7 +434,7 @@ export default function DetailAdmin({ id }: { id: string }) {
                     value={material?.name ?? undefined}
                     onChange={(event) => set('name', event.target.value)}
                   />
-                  <BaseLabel label="Вид пространнственных данных">
+                  <BaseLabel label="Вид пространственных данных">
                     <Select
                       value={
                         baseDictionary?.materialtypes?.find(
@@ -490,7 +450,7 @@ export default function DetailAdmin({ id }: { id: string }) {
                       disabled
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите вид пространнственных данных" />
+                        <SelectValue placeholder="Выберите вид пространственных данных" />
                       </SelectTrigger>
                       <SelectContent>
                         {baseDictionary.materialtypes?.map((item: any) => (
@@ -502,7 +462,10 @@ export default function DetailAdmin({ id }: { id: string }) {
                   <BaseItem
                     readOnly={true}
                     label="Местонахождение территории"
-                    value={material.location}
+                    value={material.location
+                      ?.split(',')
+                      .map((item) => item.trim())
+                      .join(', ')}
                     onChange={(event) => {}}
                   />
                   <BaseItemNumber
@@ -516,13 +479,13 @@ export default function DetailAdmin({ id }: { id: string }) {
                       disabled
                       value={
                         baseDictionary?.coordinateSystems?.find(
-                          (item) => item?.id == material?.baseType
+                          (item) => item?.id == material?.coordSystemId
                         )?.id
                       }
                       onValueChange={(value) =>
                         setMaterial((prev) => ({
                           ...prev,
-                          coordinateSystem: Number(value) ?? null
+                          coordSystemId: Number(value) ?? null
                         }))
                       }
                     >
@@ -568,7 +531,7 @@ export default function DetailAdmin({ id }: { id: string }) {
                       </SelectContent>
                     </Select>
                   </BaseLabel>
-                  <BaseLabel label="Организация изготовитель">
+                  <BaseLabel label="Организация-изготовитель">
                     <Select
                       disabled
                       value={
@@ -778,7 +741,7 @@ export default function DetailAdmin({ id }: { id: string }) {
                   />
                   <BaseItemNumber
                     readOnly={true}
-                    label="Стоимость пространнственных данных. руб"
+                    label="Стоимость пространственных данных. руб"
                     value={material?.cost}
                     onChange={(event) => {}}
                   />
@@ -804,7 +767,7 @@ export default function DetailAdmin({ id }: { id: string }) {
                   </BaseLabel>
                   <TextareaItem
                     readOnly={true}
-                    label="Конур простр. данных в формате GeoJSON"
+                    label="Контур простр. данных в формате GeoJSON"
                     placeholder="Вставьте контур простр. данных в формате GeoJSON"
                     value={material?.geometryString ?? undefined}
                     onChange={(event) =>
@@ -929,9 +892,8 @@ export default function DetailAdmin({ id }: { id: string }) {
               )}
               {!isLoaded && (
                 <>
-                  {new Array(10).fill(null).map((_, index) => (
-                    <div className="space-y-1.5" key={index}>
-                      <Skeleton className="h-3 w-[200px]" />
+                  {new Array(25).fill(null).map((_, index) => (
+                    <div key={index}>
                       <Skeleton className="h-10 w-full" />
                     </div>
                   ))}
@@ -958,7 +920,7 @@ export default function DetailAdmin({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          <Card className="col-span-3">
+          {/* <Card className="col-span-3">
             <CardHeader>
               <CardTitle>
                 Изображения предпросмотра пространственных данных
@@ -967,22 +929,26 @@ export default function DetailAdmin({ id }: { id: string }) {
             <CardContent>
               {material?.repoFiles?.repoAttachedFiles &&
               material?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <div className="flex flex-wrap gap-4">
                   {material?.repoFiles.repoAttachedFiles.map((file) => (
-                    <img
-                      src={`${returnRepoSrc(file?.code, 'jpg')}`}
-                      alt="Preview 1"
-                      className="h-auto w-[400px] rounded-lg"
-                      width={400}
-                    />
+                    <div
+                      className="relative h-[150px] w-[150px] cursor-pointer overflow-hidden rounded transition-shadow hover:shadow-lg"
+                      onClick={() => setExpandedImage(file)}
+                    >
+                      <img
+                        src={`${returnRepoSrc(file?.code)}`}
+                        alt={file.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
                   ))}
                 </div>
               ) : material?.attachedFilesList &&
                 material?.attachedFilesList?.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <div className="flex flex-wrap gap-4">
                   {material?.attachedFilesList.map((file) => (
                     <img
-                      src={`${returnFileSrcFromPath(file?.path, 'jpg')}`}
+                      src={`${returnFileSrcFromPath(file?.path)}`}
                       alt="Preview 1"
                       className="h-auto w-[400px] rounded-lg"
                       width={400}
@@ -995,7 +961,12 @@ export default function DetailAdmin({ id }: { id: string }) {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card> */}
+          <SpatialImages
+            repoAttachedFiles={material?.repoFiles?.repoAttachedFiles}
+            attachedFilesList={material?.attachedFilesList}
+            onClickImage={(file) => setExpandedImage(file)}
+          />
 
           <Card className="col-span-3">
             <CardHeader>
@@ -1004,14 +975,16 @@ export default function DetailAdmin({ id }: { id: string }) {
             <CardContent>
               {material?.repoFiles?.repoStorageFiles &&
               material?.repoFiles.repoStorageFiles.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {material?.repoFiles.repoStorageFiles.map((file) =>
-                    renderDoc(file)
-                  )}
+                <div className="flex flex-wrap gap-4">
+                  {material?.repoFiles.repoStorageFiles.map((file) => (
+                    <div className="flex items-center gap-2">
+                      {renderDoc(file)}
+                    </div>
+                  ))}
                 </div>
               ) : material?.storageFilesList &&
                 material?.storageFilesList?.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <div className="flex flex-wrap gap-4">
                   {material?.storageFilesList.map((file: any) =>
                     renderDocFromPath(file.path, file.description)
                   )}
@@ -1036,6 +1009,28 @@ export default function DetailAdmin({ id }: { id: string }) {
           </a>
         </div>
       </div>
+      <Dialog
+        open={!!expandedImage}
+        onOpenChange={(open) => {
+          if (open === false) {
+            setExpandedImage(null);
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[90vh] max-w-[90vw] items-center justify-center">
+          {expandedImage && (
+            <img
+              src={
+                'code' in expandedImage
+                  ? returnRepoSrc(expandedImage.code) // для RepoFile
+                  : returnFileSrcFromPath(expandedImage.path) // для AttachedFile
+              }
+              alt="expanede image"
+              className="h-full w-auto object-cover"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

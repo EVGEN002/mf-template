@@ -10,7 +10,8 @@ import {
   MapPinPlus,
   ChevronDown,
   LoaderCircle,
-  X
+  X,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,13 +23,14 @@ import { v4 as uuidv4 } from 'uuid';
 import '@/assets/global.css';
 
 import {
+  deleteRepoFile,
   getDictionary,
   getDictionaryFundsettings,
   postSpatialData,
   uploadRepoFile
 } from '@/api';
 
-import { Material, RepoFile } from '@/types/spatialData';
+import { AttachedFile, Material, RepoFile } from '@/types/spatialData';
 import BaseItem from '@/components/BaseItem';
 import TextareaItem from '@/components/TextareaItem';
 import BaseItemNumber from '@/components/BaseItemNumber';
@@ -53,76 +55,30 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
-  DialogTitle,
-  DialogTrigger
+  DialogTitle
 } from '@/components/ui/dialog';
 import { watch } from 'fs';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import returnModifieLocationDictionary from '@/helpers/returnModifieLocationDictionary';
+import { DistrictLocation } from '@/types/general';
+import returnFileSrcFromPath from '@/helpers/returnFileSrcFromPath';
+import returnRepoSrc from '@/helpers/returnRepoSrc';
+import SpatialImages from '@/modules/SpatialImages';
+import republicDictItem from '@/utils/constants/republicDictItem';
+import TownCheckbox from '@/components/TownCheckbox';
 
-const defaultMaterial: Material = {
-  name: '',
-  mainGeoObjectName: '',
-  shortName: '',
-  barcode: null,
-  inventarNumber: null,
-  coordinateSystem: null,
-  projection: '',
-  formats: [],
-  materialCreatorId: null,
-  mapOwner: '',
-  storageSection: '',
-  scale: null,
-  yearCreate: null,
-  yearConformity: null,
-  secretStatus: null,
-  accessConditions: '',
-  location: '',
-  materialTypeId: null,
-  baseType: null,
-  status: null,
-  displayForm: null,
-  areaBySheetFrameSquareMeter: null,
-  baseUnitOfAccount: null,
-  numberOfUnits: null,
-  imageType: '',
-  resolution: '',
-  accuracy: '',
-  cloudiness: null,
-  lat: null,
-  lng: null,
-  geometryString: '',
-  wmsLayer: '',
-  accuracySpatialData: '',
-  inventarNumberOfPd: '',
-  copyNumber: '',
-  note: '',
-  numberOfSheets: null,
-  coordSystemId: null,
-  locationGuids: '',
-  editor: '',
-  serializedAdditionalFields: '',
-  repoFiles: {
-    repoAttachedFiles: [],
-    repoStorageFiles: []
-  }
-};
+import initialMaterial from '@/utils/initialMaterial';
 
 interface SectionDictionary {
   cellValues: string[];
   rackValues: string[];
   sectionValues: string[];
   shelfValues: string[];
-}
-
-export interface DistrictLocation {
-  guid: string;
-  id: number;
-  name: string;
-  fullName: string;
 }
 
 export interface NaslegLocation {
@@ -137,6 +93,7 @@ export interface TownLocation {
   id: number;
   name: string;
   naslegID: number;
+  districtID: number;
 }
 
 export interface LocationDictionary {
@@ -146,7 +103,7 @@ export interface LocationDictionary {
 }
 
 export default function Create() {
-  const [material, setMaterial] = useState<Material>(defaultMaterial);
+  const [material, setMaterial] = useState<Material>(initialMaterial);
   const [baseDictionary, setBaseDictionary] = useState<{
     [key: string]: any[];
   }>({});
@@ -182,6 +139,14 @@ export default function Create() {
 
   const [id, setId] = useState<string>('');
 
+  const [showSuccessCreatedModal, setShowSuccessCreatedModal] = useState(false);
+
+  const [expandedImage, setExpandedImage] = useState<
+    RepoFile | AttachedFile | null
+  >(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+
   const sendFile = async () => {
     const files = fileList;
 
@@ -189,15 +154,16 @@ export default function Create() {
 
     const formData = new FormData();
 
-    // Append each file to FormData
     for (let i = 0; i < files.length; i++) {
       formData.append('tip', 'file');
       formData.append('obj', 'material');
       formData.append('obj_code', id);
-      formData.append('obj_field', 'storagedfile');
+      formData.append('obj_field', 'storagefile');
       formData.append('title', fileTitle ?? 'Безымянный файл');
       formData.append('files', files[i]);
     }
+
+    setIsLoading(true);
 
     try {
       const repoResponse = await uploadRepoFile(formData);
@@ -210,7 +176,7 @@ export default function Create() {
               ? {
                   ...prev.repoFiles,
                   repoStorageFiles: [
-                    ...prev.repoFiles.repoAttachedFiles,
+                    ...prev.repoFiles.repoStorageFiles,
                     ...(repoResponse.data as any)
                   ]
                 }
@@ -226,6 +192,8 @@ export default function Create() {
     } catch (error) {
       console.error(error);
     }
+
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -243,7 +211,6 @@ export default function Create() {
 
     const formData = new FormData();
 
-    // Append each file to FormData
     for (let i = 0; i < files.length; i++) {
       formData.append('tip', 'file');
       formData.append('obj', 'material');
@@ -253,12 +220,12 @@ export default function Create() {
       formData.append('files', files[i]);
     }
 
+    setIsLoading(true);
+
     const repoResponse = await uploadRepoFile(formData);
 
     if (repoResponse.success) {
       setMaterial((prev) => {
-        debugger;
-
         return {
           ...prev,
           repoFiles: prev.repoFiles
@@ -278,6 +245,8 @@ export default function Create() {
     } else {
       toast.error('Ошибка при загрузке изображения');
     }
+
+    setIsLoading(false);
   };
 
   const handleSetBaseDictionary = <T,>(
@@ -497,7 +466,13 @@ export default function Create() {
       if (r_location.status === 'fulfilled') {
         const data = r_location.value;
 
-        setLocationDictionary(data.data);
+        if (data.data) {
+          const locationDictionary = data.data;
+          const modifiedLocationDictionary =
+            returnModifieLocationDictionary(locationDictionary);
+
+          setLocationDictionary(modifiedLocationDictionary);
+        }
       }
       setIsLoaded(true);
     };
@@ -523,15 +498,19 @@ export default function Create() {
 
     setSending(true);
 
-    try {
-      if (material) {
-        await postSpatialData(material);
+    const response = await postSpatialData(material);
 
-        toast.success('Материал успешно создан');
-        setSending(false);
-      }
-    } catch (err) {
-      toast.error('Ошибка при создании материала');
+    if (response.success) {
+      toast.success('Материал успешно создан');
+      setSending(false);
+      setShowSuccessCreatedModal(true);
+    } else if (response.error?.status === 400) {
+      toast.error(
+        'Не удалось сохранить материал, попробуйте ввести другой инвентарный номер'
+      );
+      setSending(false);
+    } else {
+      toast.error('Произошла неизвестная ошибка');
       setSending(false);
     }
   };
@@ -553,15 +532,35 @@ export default function Create() {
     return href;
   };
 
+  const materialHref = (id: string) => {
+    const MODE = process.env.MODE;
+    let href: string;
+
+    if (MODE === 'production') {
+      href = `/material/${id}`;
+    } else if (MODE === 'local') {
+      href = `/sakhagis/material/${id}`;
+    } else if (MODE === 'development') {
+      href = `https://yakit.pro/sakhagis/material/${id}`;
+    } else {
+      href = '';
+    }
+
+    return href;
+  };
+
   const validate = (): boolean => {
+    const isAnalogFormat = material.formats?.includes('Аналоговый');
+
     return (
+      (isAnalogFormat ||
+        (material.coordSystemId !== null &&
+          material.coordSystemId !== undefined)) &&
       material.shortName !== null &&
       material.shortName !== undefined &&
       material.shortName !== '' &&
       material.inventarNumber !== null &&
       material.inventarNumber !== undefined &&
-      material.coordinateSystem !== null &&
-      material.coordinateSystem !== undefined &&
       material.materialCreatorId !== null &&
       material.materialCreatorId !== undefined &&
       material.yearCreate !== null &&
@@ -579,11 +578,7 @@ export default function Create() {
       material.displayForm !== null &&
       material.displayForm !== undefined &&
       material.baseUnitOfAccount !== null &&
-      material.baseUnitOfAccount !== undefined &&
-      material.lat !== null &&
-      material.lat !== undefined &&
-      material.lng !== null &&
-      material.lng !== undefined
+      material.baseUnitOfAccount !== undefined
     );
   };
 
@@ -627,23 +622,6 @@ export default function Create() {
     })();
   }, [selectedDistricts, selectedNaslegs, selectedTowns]);
 
-  const returnRepoSrc = (code: string | null, ext: string | null) => {
-    const MODE = process.env.MODE;
-    let src: string;
-
-    if (MODE === 'production') {
-      src = `/apimap/repo/${code}${ext}`;
-    } else if (MODE === 'local') {
-      src = `/sakhagis/apimap/repo/${code}${ext}`;
-    } else if (MODE === 'development') {
-      src = `https://yakit.pro/sakhagis/apimap/repo/${code}.${ext}`;
-    } else {
-      src = '';
-    }
-
-    return src;
-  };
-
   const renderDoc = (file: RepoFile) => {
     const MODE = process.env.MODE;
     let link: string;
@@ -662,6 +640,57 @@ export default function Create() {
     const ext = file?.ext ?? '';
 
     return <a href={link}>{name + ext}</a>;
+  };
+
+  const deleteFile = async (
+    type: 'file' | 'image',
+    code: string,
+    uuid?: string
+  ) => {
+    if (!code) return;
+    setSending(true);
+
+    try {
+      const response = await deleteRepoFile(code);
+
+      if (response.success) {
+        toast.info('Файл успешно удален');
+
+        if (type === 'file') {
+          setMaterial((prev) => {
+            return {
+              ...prev,
+              repoFiles: prev.repoFiles
+                ? {
+                    ...prev.repoFiles,
+                    repoStorageFiles: prev.repoFiles.repoStorageFiles.filter(
+                      (item) => item.uuid !== uuid
+                    )
+                  }
+                : prev.repoFiles
+            };
+          });
+        } else if (type === 'image') {
+          setMaterial((prev) => {
+            return {
+              ...prev,
+              repoFiles: prev.repoFiles
+                ? {
+                    ...prev.repoFiles,
+                    repoAttachedFiles: prev.repoFiles.repoAttachedFiles.filter(
+                      (item) => item.uuid !== uuid
+                    )
+                  }
+                : prev.repoFiles
+            };
+          });
+        }
+      } else {
+        toast.error('Не удалось удалить файл');
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -683,9 +712,10 @@ export default function Create() {
                       'ring ring-red-500/50':
                         material?.name === '' && validation
                     })}
-                    label="Наименование*"
+                    label="Наименование"
                     value={material?.name}
                     onChange={(event) => set('name', event.target.value)}
+                    required
                   />
                   <BaseItem
                     label="Главный географический объект"
@@ -699,11 +729,12 @@ export default function Create() {
                       'ring ring-red-500/50':
                         material?.shortName === '' && validation
                     })}
-                    label="Короткое наименование*"
+                    label="Короткое наименование"
                     value={material?.shortName}
                     onChange={(event) => set('shortName', event.target.value)}
+                    required
                   />
-                  <BaseLabel label="Вид пространнственных данных*">
+                  <BaseLabel label="Вид пространственных данных" required>
                     <Select
                       value={
                         baseDictionary?.materialtypes?.find(
@@ -723,7 +754,7 @@ export default function Create() {
                             material?.materialTypeId === null && validation
                         })}
                       >
-                        <SelectValue placeholder="Выберите вид пространнственных данных" />
+                        <SelectValue placeholder="Выберите вид пространственных данных" />
                       </SelectTrigger>
                       <SelectContent>
                         {baseDictionary.materialtypes?.map((item: any) => (
@@ -737,53 +768,12 @@ export default function Create() {
                       'ring ring-red-500/50':
                         material?.inventarNumber === null && validation
                     })}
-                    label="Инвентарный номер*"
+                    label="Инвентарный номер"
                     value={material?.inventarNumber}
                     onChange={(event) =>
                       set('inventarNumber', event.target.value)
                     }
-                  />
-                  <BaseLabel label="Система координат*">
-                    <Select
-                      value={
-                        baseDictionary?.coordinateSystems?.find(
-                          (item) => item?.id == material?.baseType
-                        )?.id
-                      }
-                      onValueChange={(value) =>
-                        setMaterial((prev) => ({
-                          ...prev,
-                          coordinateSystem: Number(value) ?? null
-                        }))
-                      }
-                    >
-                      <SelectTrigger
-                        className={cn({
-                          'ring ring-red-500/50':
-                            material?.coordinateSystem === null && validation
-                        })}
-                      >
-                        <SelectValue placeholder="Выберите систему координат" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {baseDictionary.coordinateSystems?.map((item: any) => (
-                          <SelectItem value={item?.id}>{item?.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </BaseLabel>
-                  <BaseItem
-                    label="Проекция"
-                    value={material?.projection}
-                    onChange={(event) => set('projection', event.target.value)}
-                  />
-                  <TextareaItem
-                    label="Контур простр. данных в формате GeoJSON"
-                    placeholder="Вставьте контур простр. данных в формате GeoJSON"
-                    value={material?.geometryString ?? undefined}
-                    onChange={(event) =>
-                      set('geometryString', event.target.value)
-                    }
+                    required
                   />
                   <BaseLabel label="Формат хранения">
                     <DropdownMenu>
@@ -802,6 +792,7 @@ export default function Create() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         className="max-h-[250px] min-w-52 overflow-y-auto"
+                        style={{ overflowY: 'auto' }}
                         align="start"
                       >
                         {baseDictionary.materialformats?.map(
@@ -834,7 +825,51 @@ export default function Create() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </BaseLabel>
-                  <BaseLabel label="Организация изготовитель*">
+                  <BaseLabel label="Система координат" required>
+                    <Select
+                      value={
+                        baseDictionary?.coordinateSystems?.find(
+                          (item) => item?.id == material?.coordSystemId
+                        )?.id
+                      }
+                      onValueChange={(value) =>
+                        setMaterial((prev) => ({
+                          ...prev,
+                          coordSystemId: Number(value) ?? null
+                        }))
+                      }
+                    >
+                      <SelectTrigger
+                        className={cn({
+                          'ring ring-red-500/50':
+                            material?.coordSystemId === null &&
+                            validation &&
+                            !material.formats?.includes('Аналоговый')
+                        })}
+                      >
+                        <SelectValue placeholder="Выберите систему координат" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {baseDictionary.coordinateSystems?.map((item: any) => (
+                          <SelectItem value={item?.id}>{item?.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </BaseLabel>
+                  <BaseItem
+                    label="Проекция"
+                    value={material?.projection}
+                    onChange={(event) => set('projection', event.target.value)}
+                  />
+                  <TextareaItem
+                    label="Контур простр. данных в формате GeoJSON"
+                    placeholder="Вставьте контур простр. данных в формате GeoJSON"
+                    value={material?.geometryString ?? undefined}
+                    onChange={(event) =>
+                      set('geometryString', event.target.value)
+                    }
+                  />
+                  <BaseLabel label="Организация-изготовитель" required>
                     <Select
                       value={
                         baseDictionary?.materialcreator?.find(
@@ -868,7 +903,6 @@ export default function Create() {
                     value={material?.mapOwner}
                     onChange={(event) => set('mapOwner', event.target.value)}
                   />
-                  {/* TODO: Секция хранения */}
                   <BaseLabel label="Секция хранения">
                     <Input
                       disabled
@@ -894,22 +928,24 @@ export default function Create() {
                       'ring ring-red-500/50':
                         material?.yearCreate === null && validation
                     })}
-                    label="Год создания*"
+                    label="Год создания"
                     value={material?.yearCreate}
                     onChange={(event) => set('yearCreate', event.target.value)}
+                    required
                   />
                   <BaseItemNumber
                     className={cn({
                       'ring ring-red-500/50':
                         material?.yearConformity === null && validation
                     })}
-                    label="Год соответствия местности*"
+                    label="Год соответствия местности"
                     value={material?.yearConformity}
                     onChange={(event) =>
                       set('yearConformity', event.target.value)
                     }
+                    required
                   />
-                  <BaseLabel label="Секретность*">
+                  <BaseLabel label="Секретность" required>
                     <Select
                       value={
                         baseDictionary?.secretStatusTypes?.find(
@@ -926,7 +962,7 @@ export default function Create() {
                       <SelectTrigger
                         className={cn({
                           'ring ring-red-500/50':
-                            !material?.secretStatus && validation
+                            !material?.secretStatus === null && validation
                         })}
                       >
                         <SelectValue placeholder="Выберите секретность" />
@@ -948,19 +984,8 @@ export default function Create() {
                   <BaseLabel label="Местоположение">
                     <Input
                       placeholder="Выберите местоположение"
-                      value={`${
-                        selectedDistricts || selectedNaslegs || selectedTowns
-                          ? `${selectedDistricts
-                              .map((district) => district.name)
-                              .join(
-                                ','
-                              )}${selectedNaslegs.length > 0 ? `,${selectedNaslegs.map((nasleg) => nasleg.name).join(',')}` : ''}${selectedTowns.length > 0 ? `,${selectedTowns.map((town) => town.name).join(',')}` : ''}`
-                          : ''
-                      }`}
-                      onChange={(e) => {
-                        console.log(e.target.value);
-                        debugger;
-                      }}
+                      value={material.location?.split(',').join(', ') ?? ''}
+                      onChange={(e) => {}}
                       disabled
                     />
                     <Button
@@ -972,8 +997,7 @@ export default function Create() {
                       Выбрать
                     </Button>
                   </BaseLabel>
-                  {/* TODO: Местонахождение территории */}
-                  <BaseLabel label="Базовый тип*">
+                  <BaseLabel label="Базовый тип" required>
                     <Select
                       value={
                         baseDictionary?.basetype?.find(
@@ -1002,7 +1026,7 @@ export default function Create() {
                       </SelectContent>
                     </Select>
                   </BaseLabel>
-                  <BaseLabel label="Статус*">
+                  <BaseLabel label="Статус" required>
                     <Select
                       value={String(material.status)}
                       onValueChange={(value) =>
@@ -1026,7 +1050,7 @@ export default function Create() {
                       </SelectContent>
                     </Select>
                   </BaseLabel>
-                  <BaseLabel label="Форма предоставления данных*">
+                  <BaseLabel label="Форма предоставления данных" required>
                     <Select
                       value={
                         baseDictionary?.displayforms?.find(
@@ -1046,7 +1070,7 @@ export default function Create() {
                             material?.displayForm === null && validation
                         })}
                       >
-                        <SelectValue placeholder="Выберите вид пространнственных данных" />
+                        <SelectValue placeholder="Выберите вид пространственных данных" />
                       </SelectTrigger>
                       <SelectContent>
                         {baseDictionary.displayforms?.map((item: any) => (
@@ -1102,24 +1126,16 @@ export default function Create() {
                     onChange={(event) => set('cloudiness', event.target.value)}
                   />
                   <BaseItemNumber
-                    className={cn({
-                      'ring ring-red-500/50':
-                        material?.lat === null && validation
-                    })}
-                    label="Широта*"
+                    label="Широта"
                     value={material?.lat}
                     onChange={(event) => set('lat', event.target.value)}
                   />
                   <BaseItemNumber
-                    className={cn({
-                      'ring ring-red-500/50':
-                        material?.lng === null && validation
-                    })}
-                    label="Долгота*"
+                    label="Долгота"
                     value={material?.lng}
                     onChange={(event) => set('lng', event.target.value)}
                   />
-                  <BaseLabel label="Базовая расчетная единица*">
+                  <BaseLabel label="Базовая расчетная единица" required>
                     <Select
                       value={
                         baseDictionary?.materialbaseunits?.find(
@@ -1152,9 +1168,8 @@ export default function Create() {
               )}
               {!isLoaded && (
                 <>
-                  {new Array(10).fill(null).map((_, index) => (
-                    <div className="space-y-1.5" key={index}>
-                      <Skeleton className="h-3 w-[200px]" />
+                  {new Array(25).fill(null).map((_, index) => (
+                    <div key={index}>
                       <Skeleton className="h-10 w-full" />
                     </div>
                   ))}
@@ -1182,44 +1197,30 @@ export default function Create() {
                       set('lat', coordinates[1]);
                     }
                   }}
+                  onDrawedCenter={(coordinates) => {
+                    debugger;
+                    if (coordinates) {
+                      set('lng', coordinates[0]);
+                      set('lat', coordinates[1]);
+                    }
+                  }}
+                  onDrawed={(geo) => {
+                    set('geometryString', JSON.stringify(geo));
+                  }}
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>
-                Изображения предпросмотра пространственных данных
-              </CardTitle>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowAddImageModal(true)}
-              >
-                Загрузить изображения
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {/* <pre>{JSON.stringify(material?.repoFiles, null, 2)}</pre> */}
-              {material?.repoFiles?.repoAttachedFiles &&
-              material?.repoFiles?.repoAttachedFiles?.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {material?.repoFiles.repoAttachedFiles.map((file) => (
-                    <img
-                      src={`${returnRepoSrc(file?.code, 'jpg')}`}
-                      alt="Preview 1"
-                      className="h-auto w-[400px] rounded-lg"
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-gray-500">
-                  Нет доступных файлов
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SpatialImages
+            repoAttachedFiles={material?.repoFiles?.repoAttachedFiles}
+            attachedFilesList={material?.attachedFilesList}
+            onClickDownLoad={() => setShowAddImageModal(true)}
+            onClickImage={(file) => setExpandedImage(file)}
+            onClickDelete={(file) => {
+              if ('code' in file) deleteFile('image', file.code, file?.uuid);
+            }}
+          />
 
           <Card className="col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -1234,54 +1235,16 @@ export default function Create() {
             </CardHeader>
             <CardContent>
               {material?.repoFiles?.repoStorageFiles &&
-              material?.repoFiles.repoStorageFiles.length > 0 ? (
-                <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {material?.repoFiles.repoStorageFiles.map((file) =>
-                    renderDoc(file)
-                  )}
-                </div>
-              ) : (
-                <div className="py-8 text-center text-gray-500">
-                  Нет доступных файлов
-                </div>
-              )}
+                material?.repoFiles.repoStorageFiles.length > 0 && (
+                  <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    {material?.repoFiles.repoStorageFiles.map((file) =>
+                      renderDoc(file)
+                    )}
+                  </div>
+                )}
             </CardContent>
           </Card>
         </div>
-
-        {false && (
-          <Card className="col-span-3">
-            <CardHeader>
-              <CardTitle>
-                Изображения предпросмотра пространственных данных
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-4 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                <img
-                  src="/placeholder.svg?height=150&width=150"
-                  alt="Preview 1"
-                  className="h-auto w-full rounded-lg"
-                />
-                <img
-                  src="/placeholder.svg?height=150&width=150"
-                  alt="Preview 2"
-                  className="h-auto w-full rounded-lg"
-                />
-                <img
-                  src="/placeholder.svg?height=150&width=150"
-                  alt="Preview 3"
-                  className="h-auto w-full rounded-lg"
-                />
-                <img
-                  src="/placeholder.svg?height=150&width=150"
-                  alt="Preview 4"
-                  className="h-auto w-full rounded-lg"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       <div className="col-span-4 flex justify-between pb-[30px]">
@@ -1430,6 +1393,61 @@ export default function Create() {
                               (sDistrict) => sDistrict.name === district.name
                             )}
                             onCheckedChange={() => {
+                              if (district.guid === republicDictItem.guid) {
+                                setSelectedDistricts([]);
+                                setSelectedNaslegs([]);
+                                setSelectedTowns([]);
+
+                                const disabledDistricts =
+                                  locationDictionary.districts.map((item) => {
+                                    if (item.guid !== republicDictItem.guid)
+                                      return { ...item, disabled: true };
+                                    return item;
+                                  });
+                                const defaultDistricts =
+                                  locationDictionary.districts.map((item) => {
+                                    if (item.guid !== republicDictItem.guid)
+                                      return { ...item, disabled: false };
+                                    return item;
+                                  });
+
+                                if (
+                                  selectedDistricts.some(
+                                    (sDistrict) =>
+                                      sDistrict.name === district.name
+                                  )
+                                ) {
+                                  setSelectedDistricts((prev) =>
+                                    prev.filter(
+                                      (item) => item.name !== district.name
+                                    )
+                                  );
+                                  setLocationDictionary((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          districts: defaultDistricts
+                                        }
+                                      : prev
+                                  );
+                                } else {
+                                  setSelectedDistricts((prev) => [
+                                    ...prev,
+                                    district
+                                  ]);
+                                  setLocationDictionary((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          districts: disabledDistricts
+                                        }
+                                      : prev
+                                  );
+                                }
+
+                                return;
+                              }
+
                               setSelectedNaslegs([]);
                               setSelectedTowns([]);
 
@@ -1446,6 +1464,7 @@ export default function Create() {
                                     district
                                   ]);
                             }}
+                            disabled={district?.disabled}
                           />
                           <Label>{district.fullName}</Label>
                         </div>
@@ -1465,7 +1484,8 @@ export default function Create() {
                       locationDictionary.naslegs
                         .filter((nasleg) =>
                           selectedDistricts.some(
-                            (sDistrict) => sDistrict.id === nasleg.districtID
+                            (sDistrict) =>
+                              String(sDistrict.id) === String(nasleg.districtID)
                           )
                         )
                         .map((nasleg) => (
@@ -1505,34 +1525,29 @@ export default function Create() {
               <CardContent>
                 <ScrollArea className="h-[500px]">
                   <div className="space-y-2">
-                    {locationDictionary &&
-                      locationDictionary.towns
-                        .filter((town) =>
+                    {locationDictionary?.towns?.map((town) => {
+                      const isTownVisible =
+                        (selectedNaslegs.length > 0 &&
                           selectedNaslegs.some(
                             (sNasleg) => sNasleg.id === town.naslegID
-                          )
-                        )
-                        .map((town) => (
-                          <div className="flex items-start space-x-2">
-                            <Checkbox
-                              checked={selectedTowns.some(
-                                (sTown) => sTown.name === town.name
-                              )}
-                              onCheckedChange={() =>
-                                selectedTowns.some(
-                                  (sTown) => sTown.name === town.name
-                                )
-                                  ? setSelectedTowns((prev) =>
-                                      prev.filter(
-                                        (item) => item.name !== town.name
-                                      )
-                                    )
-                                  : setSelectedTowns((prev) => [...prev, town])
-                              }
-                            />
-                            <Label>{town.name}</Label>
-                          </div>
-                        ))}
+                          )) ||
+                        (selectedNaslegs.length === 0 &&
+                          selectedDistricts.some(
+                            (sDistrict) =>
+                              String(sDistrict.id) === String(town.districtID)
+                          ));
+
+                      if (!isTownVisible) return null;
+
+                      return (
+                        <TownCheckbox
+                          key={town.id}
+                          town={town}
+                          selected={selectedTowns}
+                          onToggle={setSelectedTowns}
+                        />
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </CardContent>
@@ -1565,33 +1580,7 @@ export default function Create() {
         <DialogContent defaultClose={false} className="sm:max-w-[700px]">
           <DialogHeader className="flex flex-row items-center justify-between">
             <DialogTitle className="max-w-[80%]">
-              Загрузить дополнительные документы
-            </DialogTitle>
-            <DialogClose asChild>
-              <Button size="icon" variant="ghost">
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogClose>
-          </DialogHeader>
-          <div>
-            <Input
-              className="w-full"
-              type="file"
-              onChange={(event) => setFileList(event.target.files)}
-            />
-          </div>
-          <div className="mt-3 flex justify-between">
-            <Button variant="outline">Отмена</Button>
-            <Button onClick={() => {}}>Подтвердить</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showAddFileModal} onOpenChange={setShowAddFileModal}>
-        <DialogContent defaultClose={false} className="sm:max-w-[700px]">
-          <DialogHeader className="flex flex-row items-center justify-between">
-            <DialogTitle className="max-w-[80%]">
-              Загрузить Пространственные файлы
+              Загрузить пространственные файлы
             </DialogTitle>
             <DialogClose asChild>
               <Button size="icon" variant="ghost">
@@ -1600,19 +1589,10 @@ export default function Create() {
             </DialogClose>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>Название файла</Label>
-            <Input
-              className="w-full"
-              type="text"
-              placeholder="Введите наименование файла"
-              value={fileTitle ?? ''}
-              onChange={(event) => setFileTitle(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
             <Input
               className="w-full"
               type="file"
+              multiple={true}
               onChange={(event) => setFileList(event.target.files)}
             />
           </div>
@@ -1622,9 +1602,15 @@ export default function Create() {
               onClick={() => {
                 sendFile();
               }}
-              disabled={!fileTitle}
+              disabled={!fileList?.length || isLoading}
             >
-              Подтвердить
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  В процессе <LoaderCircle className="h-4 w-4 animate-spin" />
+                </span>
+              ) : (
+                <>Подтвердить</>
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -1643,19 +1629,10 @@ export default function Create() {
             </DialogClose>
           </DialogHeader>
           <div>
-            <Label>Название файла</Label>
-            <Input
-              className="w-full"
-              type="text"
-              placeholder="Введите наименование файла"
-              value={imageTitle ?? ''}
-              onChange={(event) => setImageTitle(event.target.value)}
-            />
-          </div>
-          <div>
             <Input
               className="w-full"
               type="file"
+              multiple={true}
               onChange={(event) => setImageList(event.target.files)}
             />
           </div>
@@ -1665,11 +1642,64 @@ export default function Create() {
               onClick={() => {
                 sendImage();
               }}
-              disabled={!imageList}
+              disabled={!imageList?.length || isLoading}
             >
-              Подтвердить
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  В процессе <LoaderCircle className="h-4 w-4 animate-spin" />
+                </span>
+              ) : (
+                <>Подтвердить</>
+              )}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showSuccessCreatedModal}
+        onOpenChange={setShowSuccessCreatedModal}
+      >
+        <DialogContent defaultClose={false} className="sm:max-w-[700px]">
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <DialogTitle className="flex max-w-[80%] items-center gap-2">
+              Материал успешно создан{' '}
+              <Check className="h-4 w-4 text-green-400" />
+            </DialogTitle>
+            <DialogClose asChild>
+              <Button size="icon" variant="ghost">
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </DialogHeader>
+          <DialogFooter>
+            <a href={materialHref(id)}>
+              <Button variant="outline">Перейти к просмотру материала</Button>
+            </a>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!expandedImage}
+        onOpenChange={(open) => {
+          if (open === false) {
+            setExpandedImage(null);
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[90vh] max-w-[90vw] items-center justify-center">
+          {expandedImage && (
+            <img
+              src={
+                'code' in expandedImage
+                  ? returnRepoSrc(expandedImage.code) // для RepoFile
+                  : returnFileSrcFromPath(expandedImage.path) // для AttachedFile
+              }
+              alt="expanede image"
+              className="h-full w-auto object-cover"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -7,6 +7,7 @@ export interface AttachedFile {
   userid: string | null;
   uploadtime: string | null;
   uploaderName: string | null;
+  "uuid"?: string;
 }
 
 export interface StoragedFile {
@@ -18,6 +19,7 @@ export interface StoragedFile {
   userid: string | null;
   uploadtime: string | null;
   uploaderName: string | null;
+  "uuid"?: string;
 }
 
 export interface RepoFile {
@@ -38,7 +40,13 @@ export interface RepoFile {
   "date_deleted": Date,
   "login_deleted": string,
   "user_id_created": number,
-  "user_id_deleted": number
+  "user_id_deleted": number,
+  uuid?: string
+}
+
+export interface RepoFiles {
+  repoAttachedFiles: RepoFile[],
+  repoStorageFiles: RepoFile[]
 }
 
 export interface Material {
@@ -90,11 +98,8 @@ export interface Material {
   attachedFilesList?: AttachedFile[];
   storageFilesList?: StoragedFile[];
   cost?: number | null;
-  createDate? : Date | null;
-  modifiedDate? : Date | null;
+  createDate?: Date | null;
+  modifiedDate?: Date | null;
   guid?: string | null;
-  repoFiles?: {
-    repoAttachedFiles: RepoFile[],
-    repoStorageFiles: RepoFile[]
-  }
+  repoFiles?: RepoFiles
 }

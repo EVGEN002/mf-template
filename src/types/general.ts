@@ -13,9 +13,10 @@ export interface UploadResponse {
 
 export interface DistrictLocation {
   guid: string;
-  id: number;
+  id: string;
   name: string;
   fullName: string;
+  disabled?: boolean;
 }
 
 export interface NaslegLocation {
@@ -30,10 +31,16 @@ export interface TownLocation {
   id: number;
   name: string;
   naslegID: number;
+  districtID: number;
 }
 
 export interface LocationDictionary {
   districts: DistrictLocation[];
   naslegs: NaslegLocation[];
   towns: TownLocation[];
+}
+
+export interface CurrentUser {
+  role: string;
+  name: string;
 }

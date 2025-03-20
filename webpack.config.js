@@ -61,8 +61,8 @@ module.exports = (env) => {
       name: 'SpatialData', // 📝 Введите название проекта
       filename: 'remoteEntry.js',
       remotes: {
-        MapProvider: "MapProvider@https://sakhagis.ru/mf/map/remoteEntry.js"
-        // MapProvider: 'MapProvider@https://yakit.pro/sakhagis/mf/map/remoteEntry.js'
+        // MapProvider: "MapProvider@https://sakhagis.ru/mf/map/remoteEntry.js"
+        MapProvider: 'MapProvider@https://yakit.pro/sakhagis/mf/map/remoteEntry.js'
         // MapProvider: 'MapProvider@http://localhost:3000/remoteEntry.js'
       },
       exposes: {

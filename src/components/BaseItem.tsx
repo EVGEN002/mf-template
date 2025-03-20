@@ -9,13 +9,23 @@ interface BaseItemProps {
   onChange: ChangeEventHandler<HTMLInputElement>;
   className?: string;
   readOnly?: boolean;
+  required?: boolean;
 }
 
-const BaseItem = ({ label, value, onChange, className, readOnly }: BaseItemProps) => {
+const BaseItem = ({
+  label,
+  value,
+  onChange,
+  className,
+  readOnly,
+  required
+}: BaseItemProps) => {
   return (
-    // <div className='space-y-1.5'>
-    <div className='grid grid-cols-3 gap-2'>
-      <Label className="font-medium col-span-1">{label}</Label>
+    <div className="grid grid-cols-3 gap-2">
+      <Label className="col-span-1 font-medium" title={required ? 'Поле обязательно для заполнения' : ''}>
+        {label}
+        {required && <span className="font-bold text-purple-500">*</span>}
+      </Label>
       <Input
         className={cn('col-span-2', className)}
         readOnly={readOnly}

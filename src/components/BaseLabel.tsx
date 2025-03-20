@@ -4,13 +4,13 @@ import { Label } from '@/components/ui/label';
 interface BaseLabelProps {
   label: string;
   children: ReactNode;
+  required?: boolean;
 }
 
-const BaseLabel = ({ label, children }: BaseLabelProps) => {
+const BaseLabel = ({ label, children, required }: BaseLabelProps) => {
   return (
     <div className='grid grid-cols-3 gap-2'>
-    {/* <div className='space-y-1.5'> */}
-      <Label className='col-span-1'>{label}</Label>
+      <Label className='col-span-1' title={required ? 'Поле обязательно для заполнения' : ''}>{label}{required && <span className='text-purple-500 font-bold'>*</span>}</Label>
       <div className='col-span-2'>
         {children}
       </div>

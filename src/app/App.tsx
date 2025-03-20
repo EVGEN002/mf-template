@@ -1,58 +1,68 @@
-import { getCurrentUser } from '@/api';
-import Create from '@/views/Create';
+import { useEffect, useState } from 'react';
+import { ToastContainer } from 'react-toastify';
+
 import Detail from '@/views/Detail';
 import DetailAdmin from '@/views/DetailAdmin';
 import Edit from '@/views/Edit';
-import { useEffect, useState } from 'react';
+import Create from '@/views/Create';
+import LayoutSkeleton from '@/components/LayoutSkeleton';
 
-import { ToastContainer } from 'react-toastify';
+import { getCurrentUser } from '@/api';
+
 import 'react-toastify/dist/ReactToastify.css';
 
 interface AppProps {
   id?: string;
-  type: 'view' | 'view-admin' | 'create' | 'edit';
+  type: 'view' | 'view-admin' | 'view-user' | 'create' | 'edit';
 }
 
-interface CurrentUser {
-  role: string;
-  name: string;
-}
-
-const App = ({ id, type }: AppProps) => {
-  type ??= 'view';
-
+const App = ({ id, type = 'view' }: AppProps) => {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const data = ((await getCurrentUser()).data) as CurrentUser;
+      const rUser = await getCurrentUser();
 
-        setUserRole(data.role);
-        // setUserRole("guest"); // TEST
-      } catch {
-        throw new Error('getCurrentUser error');
+      if (rUser.success && rUser.data) {
+        setUserRole(rUser.data.role);
+      } else {
+        console.error('Failed to fetch user:', rUser.error);
       }
     };
 
     fetchData();
   }, []);
 
+  const renderContent = () => {
+    if (!userRole) return <LayoutSkeleton />;
+
+    const isModerator = ['admin', 'operator'].includes(userRole);
+
+    switch (type) {
+      case 'view-admin':
+        return id ? <DetailAdmin id={id} /> : null;
+
+      case 'view-user':
+        return id ? <Detail id={id} /> : null;
+
+      case 'view':
+        if (!id) return null;
+        return isModerator ? <DetailAdmin id={id} /> : <Detail id={id} />;
+
+      case 'create':
+        return <Create />;
+
+      case 'edit':
+        return id ? <Edit id={id} /> : null;
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <>
-      {userRole && (
-        <>
-          {type === 'view' &&
-            userRole !== 'admin' &&
-            userRole !== 'operator' &&
-            id && <Detail id={id} />}
-          {type === 'view' &&
-            (userRole === 'admin' || userRole === 'operator') &&
-            id && <DetailAdmin id={id} />}
-          {type === 'create' && <Create />}
-          {type === 'edit' && id && <Edit id={id} />}
-        </>
-      )}
+      {renderContent()}
       <ToastContainer />
     </>
   );
