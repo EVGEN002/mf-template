@@ -107,6 +107,9 @@ export default function Create() {
   const [baseDictionary, setBaseDictionary] = useState<{
     [key: string]: any[];
   }>({});
+  const [unitedLocationList, setUnitedLocationList] = useState<
+    { guid: string; name: string }[] | null
+  >(null);
   const [validation, setValidation] = useState(false);
   const [isSubmit, setIsSubmit] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -470,6 +473,21 @@ export default function Create() {
           const locationDictionary = data.data;
           const modifiedLocationDictionary =
             returnModifieLocationDictionary(locationDictionary);
+
+          setUnitedLocationList([
+            ...modifiedLocationDictionary.districts.map((item) => ({
+              name: item.fullName,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.naslegs.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            })),
+            ...modifiedLocationDictionary.towns.map((item) => ({
+              name: item.name,
+              guid: item.guid
+            }))
+          ]);
 
           setLocationDictionary(modifiedLocationDictionary);
         }
@@ -984,7 +1002,17 @@ export default function Create() {
                   <BaseLabel label="Местоположение">
                     <Input
                       placeholder="Выберите местоположение"
-                      value={material.location?.split(',').join(', ') ?? ''}
+                      value={
+                        material.locationGuids
+                          ?.split(',')
+                          .map(
+                            (item) =>
+                              unitedLocationList?.find(
+                                (unitedItem) => unitedItem.guid === item
+                              )?.name
+                          )
+                          .join(', ') ?? ''
+                      }
                       onChange={(e) => {}}
                       disabled
                     />
