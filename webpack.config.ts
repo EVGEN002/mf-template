@@ -11,20 +11,28 @@ const Dotenv = require('dotenv-webpack');
 const chalk = require('chalk');
 
 module.exports = (env) => {
-  let mode = null;
+  let mode: string | null = null;
+  let outputPath: string | null = null;
+  let envFile: string | null = null;
 
   if (env.production) {
     console.log(chalk.green('Production 🚀\n'));
     mode = 'production';
+    envFile = 'production';
+    outputPath = path.resolve(__dirname, 'dist'); // Укажите путь к PROD для заливки. Пример: path.resolve('P:', 'RPO', 'EMS', 'EMS_mf', 'dashboard')
   } else if (env.local) {
     console.log(chalk.blue('Local 🏠\n'));
     mode = 'local';
-  } else {
+    envFile = 'local';
+    outputPath = path.resolve(__dirname, 'dist'); // Укажите путь к LOCAL для заливки. Пример: path.resolve('L:', 'SC', 'EMS', 'dashboard')
+  } else if (env.development) {
     console.log(chalk.yellow('Development 🛠️\n'));
     mode = 'development';
+    envFile = 'development';
+    outputPath = path.resolve(__dirname, 'dist');
   }
 
-  const dotenvPath = path.resolve(__dirname, `.env.${mode}`);
+  const dotenvPath = path.resolve(__dirname, `.env.${envFile}`);
   require('dotenv').config({ path: dotenvPath });
 
   const plugins = [
@@ -44,7 +52,7 @@ module.exports = (env) => {
       'process.env.API_BASENAME': JSON.stringify(process.env.API_BASENAME),
       'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
     }),
-    ...(env.production || env.local
+    ...(mode === 'production' || mode === 'local'
       ? [
           new BundleAnalyzerPlugin({
             analyzerMode: 'static', // 📊 Генерирует HTML файл с отчетом
@@ -55,10 +63,10 @@ module.exports = (env) => {
       : []),
     new CleanWebpackPlugin(),
     new Dotenv({
-      path: path.resolve(__dirname, `.env.${mode}`)
+      path: path.resolve(__dirname, `.env.${envFile}`)
     }),
     new ModuleFederationPlugin({
-      name: 'AppName',
+      name: 'AppName', // Переименуйте, если используете MF
       filename: 'remoteEntry.js',
       remotes: {},
       exposes: {
@@ -76,8 +84,8 @@ module.exports = (env) => {
         },
         axios: {
           requiredVersion: deps.axios,
-          eager: env.production,
-          singleton: env.production
+          eager: mode === "production" || mode === "local",
+          singleton: mode === "production" || mode === "local"
         }
       }
     })
@@ -92,7 +100,7 @@ module.exports = (env) => {
       maxAssetSize: 512000
     },
     output: {
-      path: path.resolve(__dirname, 'dist'),
+      path: outputPath,
       publicPath: process.env.PUBLIC_PATH,
       filename: 'js/[name].[contenthash].js',
       chunkFilename: 'js/[id].[contenthash].js'
