@@ -1,4 +1,4 @@
-import ExampleModule from '@/modules/ExampleModule/ExampleModule';
+import ExampleModule from '@/modules/ExampleModule';
 
 const App = () => {
   return <ExampleModule />;
