@@ -31,16 +31,19 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 401) {
-        const authPath = process.env.AUTH_PATH;
-        
-        if (!authPath) throw Error('auth path is not defined')
-        window.location.href = authPath;
-      }
+    if (error.config?.__isRetry) return Promise.reject(error);
+
+    if (error.response?.status === 401) {
+      error.config.__isRetry = true;
+
+      const authPath = process.env.AUTH_PATH;
+
+      if (!authPath) throw Error('auth path is not defined');
+
+      window.location.href = authPath;
     }
 
-    return Promise.reject(new Error(`Response error: ${error.message}`));
+    return Promise.reject(new Error(error.response?.data?.message || error.message));
   }
 );
 

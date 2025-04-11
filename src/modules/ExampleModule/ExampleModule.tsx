@@ -9,9 +9,12 @@ import { getTest } from './api';
 
 import Todo from '@/types/Todo';
 import CodeViewer from '@/components/CodeViewer';
+import { Input } from '@/components/ui/input';
 
 export default function ExampleModule() {
-  const [data, setData] = useState<Todo[] | undefined | null | unknown>(undefined);
+  const [data, setData] = useState<Todo[] | undefined | null | unknown>(
+    undefined
+  );
 
   useEffect(() => {
     (async () => {
@@ -24,14 +27,11 @@ export default function ExampleModule() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="bg-background flex min-h-screen flex-col from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <header className="p-4">
         <nav className="container mx-auto flex items-center justify-between">
-          <a
-            href="/"
-            className="text-2xl font-bold italic text-rose-500 dark:text-blue-400"
-          >
-            MICROFRONT TEMPLATE
+          <a href="/" className="text-2xl font-bold italic">
+            MF TEMPLATE
           </a>
           <div className="flex space-x-4">
             {['Webpack', 'shadcn/ui', 'Tailwind', 'React'].map((tech) => (
@@ -49,10 +49,11 @@ export default function ExampleModule() {
 
       <main className="container mx-auto flex-grow px-4 py-8">
         <div className="mb-12 text-center">
-          <h1 className="mb-4 text-4xl font-bold italic text-gray-800 dark:text-white">
-            BUILD YOUR HOST/REMOTE APP
+          <h1 className="mb-4 text-4xl font-bold italic">
+            BUILD YOUR HOST/REMOTE{' '}
+            <span className="text-blue-500">REACT 19</span> APP
           </h1>
-          <p className="text-xl italic text-gray-600 dark:text-gray-300">
+          <p className="text-xl text-gray-600 italic dark:text-gray-300">
             Built with Webpack, shadcn/ui, Tailwind, and React
           </p>
         </div>
@@ -82,7 +83,7 @@ export default function ExampleModule() {
               className="overflow-hidden transition-shadow hover:shadow-lg"
             >
               <CardContent className="p-6">
-                <h2 className="mb-2 font-mono text-2xl font-semibold italic text-purple-600">
+                <h2 className="mb-2 font-mono text-2xl font-semibold italic">
                   {tech.title}
                 </h2>
                 <p className="mb-4 text-gray-600 dark:text-gray-300">

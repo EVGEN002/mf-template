@@ -10,7 +10,7 @@ const deps = require('./package.json').dependencies;
 const Dotenv = require('dotenv-webpack');
 const chalk = require('chalk');
 
-module.exports = (env) => {
+module.exports = (env: Record<string, any>) => {
   let mode: string | null = null;
   let outputPath: string | null = null;
   let envFile: string | null = null;
