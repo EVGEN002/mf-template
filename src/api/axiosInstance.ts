@@ -1,23 +1,21 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import cookie from 'js-cookie';
 
 const API_URL = process.env.API_URL;
-const API_KEY = process.env.API_KEY;
 
 const axiosConfig: AxiosRequestConfig = {
-  baseURL: `${API_URL}`,
-  headers: {
-    hash: API_KEY,
-    'Content-Type': 'application/json'
-  }
+  baseURL: `${API_URL}`
 };
 
 const axiosInstance: AxiosInstance = axios.create(axiosConfig);
 
 axiosInstance.interceptors.request.use(
   async (config) => {
-    const hash = cookie.get('hash');
-    config.headers.hash = hash ?? API_KEY;
+    const token =
+      process.env.NODE_ENV === 'production'
+        ? cookie.get(process.env.API_TOKEN_KEY ?? 'token')
+        : process.env.DEV_API_TOKEN;
+    config.headers.Authorization = 'Bearer ' + token;
 
     return config;
   },
@@ -32,11 +30,10 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     if (axios.isAxiosError(error)) {
-      if (error.response?.status === 401) {
-        const authPath = process.env.AUTH_PATH;
-        
-        if (!authPath) throw Error('auth path is not defined')
-        window.location.href = authPath;
+      if (error.status === 401) {
+        window.location.href = '/auth?returnUrl=/explorer';
+      } else {
+        return Promise.reject(error);
       }
     }
 

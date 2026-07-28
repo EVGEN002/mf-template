@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build:prod": "webpack --env=production",
-    "build:local": "webpack --env=local",
+    "build": "webpack --env=production",
     "dev": "webpack serve --env=development",
     "start": "webpack serve --env=development --open",
     "test": "jest"

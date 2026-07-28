@@ -8,32 +8,10 @@ const { DefinePlugin } = require('webpack');
 const path = require('path');
 const deps = require('./package.json').dependencies;
 const Dotenv = require('dotenv-webpack');
-const chalk = require('chalk');
 
-module.exports = (env) => {
-  let mode: string | null = null;
-  let outputPath: string | null = null;
-  let envFile: string | null = null;
-
-  if (env.production) {
-    console.log(chalk.green('Production 🚀\n'));
-    mode = 'production';
-    envFile = 'production';
-    outputPath = path.resolve(__dirname, 'dist'); // Укажите путь к PROD для заливки. Пример: path.resolve('P:', 'RPO', 'EMS', 'EMS_mf', 'dashboard')
-  } else if (env.local) {
-    console.log(chalk.blue('Local 🏠\n'));
-    mode = 'local';
-    envFile = 'local';
-    outputPath = path.resolve(__dirname, 'dist'); // Укажите путь к LOCAL для заливки. Пример: path.resolve('L:', 'SC', 'EMS', 'dashboard')
-  } else if (env.development) {
-    console.log(chalk.yellow('Development 🛠️\n'));
-    mode = 'development';
-    envFile = 'development';
-    outputPath = path.resolve(__dirname, 'dist');
-  }
-
-  const dotenvPath = path.resolve(__dirname, `.env.${envFile}`);
-  require('dotenv').config({ path: dotenvPath });
+module.exports = (env, argv) => {
+  require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+  const isProduction = env.production;
 
   const plugins = [
     new HtmlWebPackPlugin({
@@ -46,27 +24,19 @@ module.exports = (env) => {
     new ProvidePlugin({
       React: 'react'
     }),
-    new DefinePlugin({
-      'process.env.MODE': JSON.stringify(mode),
-      'process.env.API_URL': JSON.stringify(process.env.API_URL),
-      'process.env.API_BASENAME': JSON.stringify(process.env.API_BASENAME),
-      'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
-    }),
-    ...(mode === 'production' || mode === 'local'
+    ...(isProduction
       ? [
           new BundleAnalyzerPlugin({
-            analyzerMode: 'static', // 📊 Генерирует HTML файл с отчетом
-            openAnalyzer: false, // 🌐 Открывает отчет автоматически в браузере
-            reportFilename: 'bundle_report.html' // 📄 Имя файла отчета
+            analyzerMode: 'static',
+            openAnalyzer: false,
+            reportFilename: 'bundle_report.html'
           })
         ]
       : []),
     new CleanWebpackPlugin(),
-    new Dotenv({
-      path: path.resolve(__dirname, `.env.${envFile}`)
-    }),
+    new Dotenv(),
     new ModuleFederationPlugin({
-      name: 'AppName', // Переименуйте, если используете MF
+      name: 'AppName',
       filename: 'remoteEntry.js',
       remotes: {},
       exposes: {
@@ -84,15 +54,15 @@ module.exports = (env) => {
         },
         axios: {
           requiredVersion: deps.axios,
-          eager: mode === "production" || mode === "local",
-          singleton: mode === "production" || mode === "local"
+          eager: false,
+          singleton: true
         }
       }
     })
   ];
 
   return {
-    mode: env.development ? 'development' : 'production',
+    mode: env.production ? 'production' : 'development',
     entry: ['./src/index.ts'],
     performance: {
       hints: false,
@@ -100,7 +70,9 @@ module.exports = (env) => {
       maxAssetSize: 512000
     },
     output: {
-      path: outputPath,
+      path: process.env.BUILD_PATH
+        ? path.resolve(__dirname, process.env.BUILD_PATH)
+        : path.resolve(__dirname, 'dist'),
       publicPath: process.env.PUBLIC_PATH,
       filename: 'js/[name].[contenthash].js',
       chunkFilename: 'js/[id].[contenthash].js'
@@ -116,7 +88,15 @@ module.exports = (env) => {
           static: {
             directory: path.join(__dirname, 'public')
           },
-          watchFiles: ['src/**/*', 'public/**/*']
+          watchFiles: ['src/**/*', 'public/**/*'],
+          proxy: [
+            {
+              context: ['/api'],
+              target: process.env.PROXY_TARGET || 'http://localhost:8080',
+              changeOrigin: true,
+              secure: false
+            }
+          ]
         }
       : undefined,
     plugins,
